@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface MembershipCardProps {
   tier: string;
@@ -68,13 +69,15 @@ export const MembershipCard = ({ tier, price, isAnnual, benefits, featured }: Me
         </div>
       </CardContent>
       <CardFooter>
-        <Button
-          variant={featured ? "accent" : "default"}
-          size="lg"
-          className="w-full"
-        >
-          Join Now
-        </Button>
+        <Link to={`/signup?level=${tier.toLowerCase()}`} className="w-full">
+          <Button
+            variant={featured ? "accent" : "default"}
+            size="lg"
+            className="w-full"
+          >
+            Join Now
+          </Button>
+        </Link>
       </CardFooter>
     </Card>
   );
