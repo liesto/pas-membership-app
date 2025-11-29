@@ -24,7 +24,7 @@ const Login = () => {
 
     // Simulate login
     toast.success("Login successful!");
-    navigate("/");
+    navigate("/my-account");
   };
 
   return (
