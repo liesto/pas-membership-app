@@ -132,13 +132,31 @@ sf sobject describe --sobject Member__c --target-org pas-membership-sb
 
 ### Custom Objects in PAS Org
 
-Key custom objects for PAS Membership App (note: verify these exist before querying):
-- `Member__c` - Core member records
-- `MemberRegistration__c` - Member registration tracking
-- `MemberProduct__c` - Member product associations
-- `Club__c` - Club information
-- `ClubRegistration__c` - Club registration
-- `ClubMemberRelationship__c` - Club/member relationships
-- `Pool__c` - Swimming pools
-- And 1,180+ total objects (standard + custom)
+PAS-Specific Custom Objects:
+- `Budget__c` - Budget tracking
+- `Contact_Payload__c` - Contact data payloads
+- `Contact_Snapshot__c` - Contact snapshots
+- `Grant__c` - Grant records
+- `PAS_Event__c` - PAS events
+- `PAS_Event_Attendance__c` - Event attendance tracking
+- `Paypal_Payload__c` - PayPal transaction payloads
+- `RFM_Snapshot__c` - RFM analysis snapshots
+- `Signup_Genius_Payload__c` - SignUp Genius integration
+- `Trail__c` - Trail records
+- `Trail_Ride__c` - Trail ride records
+- `Volunteer_Information__c` - Volunteer data
+- `VolunteerHub_Payload__c` - VolunteerHub integration
+- `Workbook__c` - Workbook records
+
+Installed Packages (Nonprofit Cloud):
+- `npe01__*` - Contacts and Organizations
+- `npe03__*` - Recurring Donations
+- `npe04__*` - Relationships
+- `npe05__*` - Affiliations
+- `npo02__*` - Household
+- `npsp__*` - Salesforce Nonprofit Cloud
+- `dlrs__*` - Declarative Lookup Rollup Summaries
+- And additional managed packages (Give Lively, VolunteerHub, etc.)
+
+For complete list of objects, query: `sf sobject list --target-org pas-membership-sb`
 
