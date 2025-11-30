@@ -1,8 +1,56 @@
 # Claude Instructions For the PAS Membership App
 
-This will be a hosted web app that enables self-serve membership management for Pisgah Area SORBA.  It will use Clerk.dev for authentication/login.  It will use Stripe for payment processing.  It will be hosted at Netlify.  It will integrate with Salesforce.  It will be built in React.
+This is the primary development repository for the PAS Membership App - a hosted web app that enables self-serve membership management for Pisgah Area SORBA. It will use Clerk.dev for authentication/login, Stripe for payment processing, Netlify for hosting, Salesforce for data integration, and is built in React.
 
-The member-connect-hub folder/project pushes to https://github.com/liesto/member-connect-hub.
+## Repository Structure
+
+### PAS Membership App (Current Repository)
+- **Repository**: https://github.com/liesto/pas-membership-app
+- **Purpose**: Primary development and feature implementation
+- **Deployment**: Netlify
+- **Push to**: `pas-membership-app` repository
+
+### Member Connect Hub (Design Reference Only)
+- **Repository**: https://github.com/liesto/member-connect-hub
+- **Purpose**: Original Lovable.dev design (reference only, DO NOT push custom code here)
+- **Status**: Clerk authentication has been removed to avoid dependency conflicts
+- **Use Case**: Pull design updates if needed, manually integrate into pas-membership-app
+
+## What to Push Where
+
+### Push to `pas-membership-app` (THIS REPOSITORY)
+✅ **DO PUSH**:
+- All Clerk authentication pages and logic
+- Custom business logic and features
+- Membership management functionality
+- Database integrations (Salesforce, Stripe)
+- Environment variables (`.env.local` - not tracked by git)
+- All custom components and pages
+- State management code
+- API integration code
+- Testing code
+
+### DO NOT Push to `pas-membership-app`
+❌ **DO NOT PUSH**:
+- Design files or UI mockups only (use member-connect-hub for that)
+- Lovable.dev generated code that hasn't been customized
+- Code from member-connect-hub without adaptation
+
+### DO NOT Push to `member-connect-hub`
+❌ **NEVER PUSH** to member-connect-hub:
+- Clerk authentication code or configuration
+- Custom business logic
+- Environment variables or secrets
+- Any code from pas-membership-app
+- Deployment-specific configuration
+
+### Design Update Workflow
+When Lovable.dev updates the design in member-connect-hub:
+1. Review the changes in member-connect-hub
+2. Identify UI components that were updated
+3. Manually cherry-pick components into pas-membership-app if needed
+4. Test thoroughly in pas-membership-app
+5. DO NOT sync automatically between repos
 
 ## Clerk.dev Authentication Setup
 
