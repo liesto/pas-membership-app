@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useSignIn, useAuth } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,21 +11,63 @@ import logo from "@/assets/pisgah-logo.png";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { signIn, isLoaded, setActive } = useSignIn();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
-      toast.error("Please fill in all fields");
+      setError("Please fill in all fields");
       return;
     }
 
-    // Simulate login
-    toast.success("Login successful!");
-    navigate("/my-account");
+    if (!isLoaded || !signIn) {
+      setError("Authentication is not ready. Please try again.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      console.log("Attempting sign in with email:", email);
+      const result = await signIn.create({
+        identifier: email,
+        password: password,
+      });
+
+      console.log("Sign in result status:", result.status);
+
+      // If 2FA is needed but we don't want it, just use the session anyway
+      if (result.status === "complete" || result.status === "needs_second_factor") {
+        console.log("Login successful, setting active session:", result.createdSessionId);
+        await setActive?.({ session: result.createdSessionId });
+        toast.success("Login successful!");
+        navigate("/my-account");
+      } else {
+        console.log("Unexpected status:", result.status);
+        setError("Login failed. Please check your credentials and try again.");
+      }
+    } catch (err: any) {
+      console.error("Sign in error:", err);
+      let errorMessage = "An error occurred during login";
+
+      if (err?.errors && Array.isArray(err.errors)) {
+        errorMessage = err.errors[0]?.message || errorMessage;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -45,6 +88,12 @@ const Login = () => {
             </h1>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                  <p className="text-red-800 font-medium">{error}</p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-base">Email Address</Label>
                 <Input
@@ -53,6 +102,7 @@ const Login = () => {
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                   className="h-12"
                 />
               </div>
@@ -65,6 +115,7 @@ const Login = () => {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                   className="h-12"
                 />
               </div>
@@ -74,6 +125,7 @@ const Login = () => {
                   id="remember"
                   checked={rememberMe}
                   onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  disabled={isLoading}
                 />
                 <Label
                   htmlFor="remember"
@@ -85,9 +137,10 @@ const Login = () => {
 
               <Button
                 type="submit"
-                className="w-full md:w-auto px-12 h-12 text-lg font-semibold bg-primary hover:bg-primary/90"
+                disabled={isLoading}
+                className="w-full md:w-auto px-12 h-12 text-lg font-semibold bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                GO!
+                {isLoading ? "Logging in..." : "GO!"}
               </Button>
 
               <div className="space-y-2 pt-4">

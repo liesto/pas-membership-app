@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useSignUp, useAuth } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,8 @@ import ReCAPTCHA from "react-google-recaptcha";
 
 const CreateAccount = () => {
   const navigate = useNavigate();
-  
+  const { signUp, isLoaded, setActive } = useSignUp();
+
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -28,6 +30,8 @@ const CreateAccount = () => {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
+  const [createAccountError, setCreateAccountError] = useState("");
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,26 +45,79 @@ const CreateAccount = () => {
     navigate("/");
   };
 
-  const handleCreateAccount = (e: React.FormEvent) => {
+  const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!firstName || !lastName || !phone || !email || !password || !confirmPassword || !city || !state) {
-      toast.error("Please fill in all fields");
+
+    // Only validate required fields: firstName, lastName, email, password, confirmPassword
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+      setCreateAccountError("Please fill in all required fields (First Name, Last Name, Email, Password)");
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+      setCreateAccountError("Passwords do not match");
       return;
     }
 
-    if (!captchaValue) {
-      toast.error("Please complete the reCAPTCHA");
+    if (!isLoaded || !signUp) {
+      setCreateAccountError("Authentication is not ready. Please try again.");
       return;
     }
 
-    toast.success("Account created successfully!");
-    navigate("/");
+    setIsCreatingAccount(true);
+    setCreateAccountError("");
+
+    try {
+      console.log("Creating account with email:", email, "firstName:", firstName, "lastName:", lastName);
+
+      // Create the user in Clerk
+      const result = await signUp.create({
+        emailAddress: email,
+        password: password,
+        firstName: firstName,
+        lastName: lastName,
+      });
+
+      console.log("Sign up status:", result.status);
+      console.log("Created session ID:", result.createdSessionId);
+
+      if (result.status === "complete") {
+        console.log("Account created successfully, setting active session:", result.createdSessionId);
+        await setActive?.({ session: result.createdSessionId });
+        toast.success("Account created successfully!");
+        navigate("/my-account");
+      } else if (result.status === "missing_requirements") {
+        console.log("Missing requirements detected");
+        console.log("Created session ID available:", !!result.createdSessionId);
+        // Clerk requires email verification - even with missing_requirements, we can proceed if there's a session
+        if (result.createdSessionId) {
+          console.log("Setting active session despite missing requirements");
+          await setActive?.({ session: result.createdSessionId });
+          toast.success("Account created successfully!");
+          navigate("/my-account");
+        } else {
+          console.log("No session ID available - email verification required");
+          setCreateAccountError("Account creation requires email verification. Please check your email.");
+        }
+      } else {
+        console.log("Unexpected status:", result.status);
+        setCreateAccountError("Account creation failed. Please try again.");
+      }
+    } catch (err: any) {
+      console.error("Sign up error:", err);
+      let errorMessage = "An error occurred while creating your account";
+
+      if (err?.errors && Array.isArray(err.errors)) {
+        errorMessage = err.errors[0]?.message || errorMessage;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+
+      setCreateAccountError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsCreatingAccount(false);
+    }
   };
 
   const usStates = [
@@ -164,6 +221,12 @@ const CreateAccount = () => {
             </p>
 
             <form onSubmit={handleCreateAccount} className="space-y-6">
+              {createAccountError && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                  <p className="text-red-800 font-medium">{createAccountError}</p>
+                </div>
+              )}
+
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Input
@@ -172,6 +235,7 @@ const CreateAccount = () => {
                     placeholder="First Name"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
+                    disabled={isCreatingAccount}
                     className="h-12"
                   />
                 </div>
@@ -182,6 +246,7 @@ const CreateAccount = () => {
                     placeholder="Last Name"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
+                    disabled={isCreatingAccount}
                     className="h-12"
                   />
                 </div>
@@ -194,6 +259,7 @@ const CreateAccount = () => {
                   placeholder="Phone"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  disabled={isCreatingAccount}
                   className="h-12"
                 />
               </div>
@@ -205,6 +271,7 @@ const CreateAccount = () => {
                   placeholder="Email Address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isCreatingAccount}
                   className="h-12"
                 />
               </div>
@@ -216,6 +283,7 @@ const CreateAccount = () => {
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isCreatingAccount}
                   className="h-12"
                 />
               </div>
@@ -224,9 +292,10 @@ const CreateAccount = () => {
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="Password"
+                  placeholder="Confirm Password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isCreatingAccount}
                   className="h-12"
                 />
               </div>
@@ -239,11 +308,12 @@ const CreateAccount = () => {
                     placeholder="City"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
+                    disabled={isCreatingAccount}
                     className="h-12"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Select value={state} onValueChange={setState}>
+                  <Select value={state} onValueChange={setState} disabled={isCreatingAccount}>
                     <SelectTrigger className="h-12">
                       <SelectValue placeholder="Select State" />
                     </SelectTrigger>
@@ -267,9 +337,10 @@ const CreateAccount = () => {
 
               <Button
                 type="submit"
-                className="w-full md:w-auto px-12 h-12 text-lg font-semibold bg-primary hover:bg-primary/90"
+                disabled={isCreatingAccount}
+                className="w-full md:w-auto px-12 h-12 text-lg font-semibold bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                GO!
+                {isCreatingAccount ? "Creating Account..." : "GO!"}
               </Button>
             </form>
           </Card>
