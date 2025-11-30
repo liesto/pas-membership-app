@@ -45,7 +45,7 @@ const ForgotPassword = () => {
 
       toast.success("Password reset instructions have been sent to your email");
       setTimeout(() => {
-        navigate("/login");
+        navigate("/verify-reset-code");
       }, 2000);
     } catch (err: any) {
       console.error("Password reset error:", err);

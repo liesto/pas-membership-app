@@ -57,22 +57,23 @@ const ResetPassword = () => {
     setError("");
 
     try {
-      console.log("Attempting password reset with code");
+      console.log("Attempting password reset with code:", code);
 
       // Use Clerk's reset password flow with the code from URL
       const result = await signIn.attemptFirstFactor({
-        strategy: "reset_password_code",
+        strategy: "reset_password_email_code",
         code: code,
         password: newPassword,
       });
 
       console.log("Reset password result:", result);
+      console.log("Reset password result status:", result.status);
 
       if (result.status === "complete") {
         console.log("Password reset successfully");
         toast.success("Password has been reset successfully!");
         setTimeout(() => {
-          navigate("/login");
+          navigate("/my-account");
         }, 2000);
       } else {
         setError("Password reset failed. Please try again.");
@@ -82,6 +83,7 @@ const ResetPassword = () => {
       let errorMessage = "An error occurred while resetting your password";
 
       if (err?.errors && Array.isArray(err.errors)) {
+        console.log("Error details:", err.errors);
         errorMessage = err.errors[0]?.message || errorMessage;
       } else if (err?.message) {
         errorMessage = err.message;
