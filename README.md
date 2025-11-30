@@ -1,18 +1,15 @@
-# Welcome to your Lovable project
+# PAS Membership App
 
-## Project info
+A membership management platform for Pisgah Area SORBA built with modern web technologies.
 
-**URL**: https://lovable.dev/projects/2589d51c-b4cc-41d2-9297-a3fd4c502d6f
+## Project Overview
+
+This is the custom development repository for the PAS (Pisgah Area SORBA) Membership App. The initial UI design was created using [Lovable.dev](https://lovable.dev), and we've extended it with custom authentication (Clerk.dev) and membership management features.
+
+**Repository**: https://github.com/liesto/pas-membership-app
+**Original Lovable Project**: https://github.com/liesto/member-connect-hub
 
 ## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/2589d51c-b4cc-41d2-9297-a3fd4c502d6f) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
@@ -60,14 +57,21 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Environment Setup
+
+Create a `.env.local` file in the project root with the following variables:
+
+```
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key_here
+```
+
+The `.env.local` file is not tracked by git (see `.gitignore`) and should never be committed.
+
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/2589d51c-b4cc-41d2-9297-a3fd4c502d6f) and click on Share -> Publish.
+This project is designed to be deployed to Netlify. Push to the `main` branch and Netlify will automatically build and deploy.
 
-## Can I connect a custom domain to my Lovable project?
+### Required Environment Variables for Deployment
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Set these in your Netlify environment variables:
+- `VITE_CLERK_PUBLISHABLE_KEY` - Your Clerk.dev publishable key
