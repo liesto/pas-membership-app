@@ -82,3 +82,65 @@ When Lovable.dev updates the design in member-connect-hub:
 - Store real keys ONLY in `.env.local` - never commit them to git
 - Ensure `.gitignore` includes `.env*` files
 
+## Salesforce Integration
+
+### Organization Distinction - CRITICAL
+
+⚠️ **IMPORTANT**: The developer's Mac has TWO separate Salesforce orgs connected. These MUST NEVER be mixed or confused.
+
+**PAS Membership App (THIS PROJECT)**
+- **Salesforce Alias**: `pas-membership-sb`
+- **Org ID**: `00DU7000009QgG9MAK`
+- **Username**: `jbwpas@buildabonfire.com.membership`
+- **Purpose**: Pisgah Area SORBA member management
+- **Objects**: Member__c, MemberRegistration__c, Club__c, Pool__c, etc.
+
+**USMS (US Masters Swimming) - SEPARATE PROJECT**
+- **Salesforce Alias**: `usms-sfmc-sb`
+- **Org ID**: `00DO8000003eiztMAA`
+- **Username**: `jwilliamson@usmastersswimming.org.sfmc`
+- **Purpose**: Different organization - DO NOT access when working on PAS
+- **Objects**: Different schema - do not assume USMS objects exist in PAS
+
+### Critical Rules for Salesforce Interactions
+
+🚫 **NEVER**:
+- Query USMS org data when working on PAS project
+- Mix objects/fields from USMS with PAS Salesforce queries
+- Assume USMS schema applies to PAS org
+- Use wrong alias when connecting to Salesforce CLI
+
+✅ **ALWAYS**:
+- Use `pas-membership-sb` alias when querying PAS Salesforce data
+- Verify org ID (`00DU7000009QgG9MAK`) matches PAS before executing queries
+- Treat these as completely separate Salesforce instances
+- Document which org is being accessed in any Salesforce interactions
+- Ask for clarification if unsure about org-specific objects/fields
+
+### Salesforce CLI Setup
+
+The local Salesforce CLI is configured with both orgs:
+```bash
+sf org list
+```
+
+For this project, always use:
+```bash
+sf org list  # Verify pas-membership-sb is default
+sf project deploy start --target-org pas-membership-sb  # Example deployment
+```
+
+### Custom Objects in PAS Org
+
+Key custom objects for PAS Membership App:
+- `Member__c` - Core member records
+- `MemberRegistration__c` - Member registration tracking
+- `MemberProduct__c` - Member product associations
+- `Club__c` - Club information
+- `ClubRegistration__c` - Club registration
+- `ClubMemberRelationship__c` - Club/member relationships
+- `Pool__c` - Swimming pools
+- `USMSProduct__c` - USMS products
+- `USMSPriceBook__c` - Price books
+- And 1,180+ total objects (standard + custom)
+
