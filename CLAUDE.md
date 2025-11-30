@@ -2,6 +2,33 @@
 
 This is the primary development repository for the PAS Membership App - a hosted web app that enables self-serve membership management for Pisgah Area SORBA. It will use Clerk.dev for authentication/login, Stripe for payment processing, Netlify for hosting, Salesforce for data integration, and is built in React.
 
+## Critical Operating Principle: NEVER GUESS
+
+⚠️ **DO NOT MAKE ASSUMPTIONS OR GUESSES ABOUT:**
+- Field names in Salesforce objects
+- Object names or structure in Salesforce
+- API endpoints or response formats
+- Code behavior or file locations
+- Dependencies or package versions
+- Database schema or table structure
+
+**INSTEAD:**
+- **Query the actual system** (Salesforce CLI, database, API, codebase)
+- **Read the actual code** before modifying
+- **Verify objects exist** before referencing them
+- **Check actual data** before making assumptions about structure
+- **Ask for clarification** if uncertain
+
+**Example of WRONG approach:**
+- "Member__c is probably a custom object in PAS" → WRONG (it's in USMS, not PAS)
+
+**Example of RIGHT approach:**
+- Run: `sf sobject list --target-org pas-membership-sb` → Verify actual objects exist
+- Read the file before editing it
+- Query actual Salesforce data to understand structure
+
+This principle is more important than speed. A few extra seconds to verify is infinitely better than implementing against non-existent objects or incorrect assumptions.
+
 ## Repository Structure
 
 ### PAS Membership App (Current Repository)
