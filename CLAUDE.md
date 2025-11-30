@@ -84,55 +84,55 @@ When Lovable.dev updates the design in member-connect-hub:
 
 ## Salesforce Integration
 
-### Organization Distinction - CRITICAL
+### Sandbox Configuration
 
-⚠️ **IMPORTANT**: The developer's Mac has TWO separate Salesforce orgs connected. These MUST NEVER be mixed or confused.
+This project integrates with a Salesforce sandbox for data persistence and member management.
 
-**PAS Membership App (THIS PROJECT)**
+**PAS Membership App Salesforce Sandbox**
 - **Salesforce Alias**: `pas-membership-sb`
 - **Org ID**: `00DU7000009QgG9MAK`
 - **Username**: `jbwpas@buildabonfire.com.membership`
-- **Purpose**: Pisgah Area SORBA member management
-- **Objects**: Member__c, MemberRegistration__c, Club__c, Pool__c, etc.
+- **Purpose**: Pisgah Area SORBA member data management
 
-**USMS (US Masters Swimming) - SEPARATE PROJECT**
-- **Salesforce Alias**: `usms-sfmc-sb`
-- **Org ID**: `00DO8000003eiztMAA`
-- **Username**: `jwilliamson@usmastersswimming.org.sfmc`
-- **Purpose**: Different organization - DO NOT access when working on PAS
-- **Objects**: Different schema - do not assume USMS objects exist in PAS
+### Accessing Salesforce Data
+
+⚠️ **IMPORTANT**: There are NO MCP Salesforce tools available for this project. Use **Salesforce CLI only**.
+
+All Salesforce interactions must use the Salesforce CLI (`sf` command) with the `--target-org pas-membership-sb` flag to ensure queries go to the correct sandbox.
+
+**Example Queries**:
+```bash
+# List Salesforce orgs (verify pas-membership-sb is available)
+sf org list
+
+# Query Member records
+sf data query --query "SELECT Id, Name, Email FROM Member__c LIMIT 10" --target-org pas-membership-sb
+
+# Query Member Registrations
+sf data query --query "SELECT Id, Name, Member__c FROM MemberRegistration__c LIMIT 10" --target-org pas-membership-sb
+
+# Display object metadata
+sf sobject describe --sobject Member__c --target-org pas-membership-sb
+```
 
 ### Critical Rules for Salesforce Interactions
 
 🚫 **NEVER**:
-- Query USMS org data when working on PAS project
-- Mix objects/fields from USMS with PAS Salesforce queries
-- Assume USMS schema applies to PAS org
-- Use wrong alias when connecting to Salesforce CLI
+- Assume MCP Salesforce tools are available (they are not)
+- Omit the `--target-org pas-membership-sb` flag from Salesforce CLI commands
+- Query without specifying which org is being accessed
+- Use Salesforce CLI without explicit org targeting
 
 ✅ **ALWAYS**:
-- Use `pas-membership-sb` alias when querying PAS Salesforce data
-- Verify org ID (`00DU7000009QgG9MAK`) matches PAS before executing queries
-- Treat these as completely separate Salesforce instances
-- Document which org is being accessed in any Salesforce interactions
-- Ask for clarification if unsure about org-specific objects/fields
-
-### Salesforce CLI Setup
-
-The local Salesforce CLI is configured with both orgs:
-```bash
-sf org list
-```
-
-For this project, always use:
-```bash
-sf org list  # Verify pas-membership-sb is default
-sf project deploy start --target-org pas-membership-sb  # Example deployment
-```
+- Use Salesforce CLI (`sf` command) for all Salesforce interactions
+- Include `--target-org pas-membership-sb` in every command
+- Verify you're querying the correct org ID: `00DU7000009QgG9MAK`
+- Document which Salesforce queries were executed
+- Ask for clarification if unsure about object/field names
 
 ### Custom Objects in PAS Org
 
-Key custom objects for PAS Membership App:
+Key custom objects for PAS Membership App (note: verify these exist before querying):
 - `Member__c` - Core member records
 - `MemberRegistration__c` - Member registration tracking
 - `MemberProduct__c` - Member product associations
@@ -140,7 +140,5 @@ Key custom objects for PAS Membership App:
 - `ClubRegistration__c` - Club registration
 - `ClubMemberRelationship__c` - Club/member relationships
 - `Pool__c` - Swimming pools
-- `USMSProduct__c` - USMS products
-- `USMSPriceBook__c` - Price books
 - And 1,180+ total objects (standard + custom)
 
