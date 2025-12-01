@@ -52,9 +52,11 @@ const CreateAccount = () => {
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[CreateAccount] Form submitted");
 
     // Validate phone if provided
     if (phone && !validatePhoneNumber(phone)) {
+      console.log("[CreateAccount] Phone validation failed:", phone);
       setPhoneError(getPhoneErrorMessage(phone));
       return;
     }
@@ -62,16 +64,19 @@ const CreateAccount = () => {
 
     // Only validate required fields: firstName, lastName, email, password, confirmPassword
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
+      console.log("[CreateAccount] Missing required fields");
       setCreateAccountError("Please fill in all required fields (First Name, Last Name, Email, Password)");
       return;
     }
 
     if (password !== confirmPassword) {
+      console.log("[CreateAccount] Passwords do not match");
       setCreateAccountError("Passwords do not match");
       return;
     }
 
     if (!isLoaded || !signUp) {
+      console.log("[CreateAccount] Clerk not loaded - isLoaded:", isLoaded, "signUp available:", !!signUp);
       setCreateAccountError("Authentication is not ready. Please try again.");
       return;
     }
@@ -81,9 +86,10 @@ const CreateAccount = () => {
     let clerkUserId: string | null = null;
 
     try {
-      console.log("Creating account with email:", email, "firstName:", firstName, "lastName:", lastName);
+      console.log("[CreateAccount] Starting account creation for:", { email, firstName, lastName });
 
       // Step 1: Create the user in Clerk
+      console.log("[CreateAccount] Calling Clerk signUp.create()");
       const result = await signUp.create({
         emailAddress: email,
         password: password,
@@ -91,8 +97,7 @@ const CreateAccount = () => {
         lastName: lastName,
       });
 
-      console.log("Sign up status:", result.status);
-      console.log("Created session ID:", result.createdSessionId);
+      console.log("[CreateAccount] Clerk signup complete - status:", result.status, "sessionId:", result.createdSessionId);
 
       // Check if we have a valid session before proceeding to Salesforce
       const canProceed = result.status === "complete" ||
@@ -127,7 +132,7 @@ const CreateAccount = () => {
       }
 
       // Step 4: Create the contact in Salesforce
-      console.log("Creating Salesforce contact...");
+      console.log("[CreateAccount] Creating Salesforce contact...");
       const contactData = {
         firstName,
         lastName,
@@ -137,13 +142,14 @@ const CreateAccount = () => {
         ...(state && { state }),
       };
 
+      console.log("[CreateAccount] Calling createContact with:", contactData);
       await createContact(contactData, sessionToken || undefined);
-      console.log("Salesforce contact created successfully");
+      console.log("[CreateAccount] Salesforce contact created successfully!");
 
       toast.success("Account created successfully!");
       navigate("/my-account");
     } catch (err: any) {
-      console.error("Account creation error:", err);
+      console.error("[CreateAccount] Account creation failed:", err?.message || err);
 
       // Handle Salesforce failure - rollback Clerk user
       if (clerkUserId) {
