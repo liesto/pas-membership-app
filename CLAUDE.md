@@ -187,3 +187,53 @@ Installed Packages (Nonprofit Cloud):
 
 For complete list of objects, query: `sf sobject list --target-org pas-membership-sb`
 
+## Testing Standards
+
+### Overview
+This project follows comprehensive testing practices documented in `Planning/testing-standards.md`. **All new features must include tests** following these standards.
+
+### Quick Reference
+- **Test Runner**: Vitest with jsdom environment
+- **Component Testing**: Testing Library + user-event
+- **API Mocking**: Mock Service Worker (MSW)
+- **Test Location**: `src/__tests__/[type]/[name].test.ts`
+
+### Commands
+```bash
+npm test              # Watch mode (development)
+npm test:ui           # Interactive dashboard
+npm test:run          # Single run (CI/CD)
+```
+
+### Testing Entry Points
+1. **START HERE**: `Planning/TESTING-README.md` - Navigation guide for all testing docs
+2. **Pattern Reference**: `Planning/testing-standards.md` - How to write tests for new features
+3. **Historical Context**: `Planning/testing-and-implementation-summary.md` - What was built and why
+
+### Requirements for New Features
+✅ **ALWAYS**:
+- Write tests alongside feature code
+- Include unit tests for utilities, services, and complex logic
+- Test error handling and edge cases
+- Follow patterns in `Planning/testing-standards.md`
+- Run `npm test:run` before committing
+- Achieve 80%+ code coverage for new code
+
+❌ **NEVER**:
+- Commit untested code
+- Skip tests because "it's just a simple component"
+- Leave console.log or debugging code in tests
+
+### Current Test Status
+- **Total Tests**: 40 passing ✅
+- **Coverage**: Phone validation (29), Salesforce API (8), Clerk API (3)
+- **Test Files**: `src/utils/validation.test.ts`, `src/__tests__/services/*`
+
+### When Adding New Features
+1. Read the relevant pattern in `Planning/testing-standards.md`
+2. Create test file alongside feature code
+3. Follow the copy-paste pattern from the standards document
+4. Run tests: `npm test:run`
+5. Commit tests with feature code in same commit
+6. If discovering new patterns, update `Planning/testing-standards.md`
+
