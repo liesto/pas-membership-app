@@ -17,6 +17,7 @@ import { validatePhoneNumber, getPhoneErrorMessage } from "@/utils/validation";
 const CreateAccount = () => {
   const navigate = useNavigate();
   const { signUp, isLoaded, setActive } = useSignUp();
+  const { getToken } = useAuth();
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -107,7 +108,25 @@ const CreateAccount = () => {
       // Store the user ID for potential rollback
       clerkUserId = result.createdSessionId;
 
-      // Step 2: Create the contact in Salesforce
+      // Step 2: Set active session
+      if (result.createdSessionId) {
+        console.log("Setting active session");
+        await setActive?.({ session: result.createdSessionId });
+      }
+
+      // Step 3: Get the session token from Clerk for API calls
+      let sessionToken: string | null = null;
+      try {
+        const token = await getToken();
+        if (token) {
+          sessionToken = token;
+          console.log("Got Clerk session token");
+        }
+      } catch (tokenError) {
+        console.warn("Could not retrieve session token:", tokenError);
+      }
+
+      // Step 4: Create the contact in Salesforce
       console.log("Creating Salesforce contact...");
       const contactData = {
         firstName,
@@ -118,14 +137,8 @@ const CreateAccount = () => {
         ...(state && { state }),
       };
 
-      await createContact(contactData);
+      await createContact(contactData, sessionToken || undefined);
       console.log("Salesforce contact created successfully");
-
-      // Step 3: Set active session and navigate
-      if (result.createdSessionId) {
-        console.log("Setting active session");
-        await setActive?.({ session: result.createdSessionId });
-      }
 
       toast.success("Account created successfully!");
       navigate("/my-account");

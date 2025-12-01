@@ -1,4 +1,8 @@
-import 'dotenv/config.js';
+import dotenv from 'dotenv';
+
+// Load .env.local from backend root
+dotenv.config({ path: '.env.local' });
+
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';

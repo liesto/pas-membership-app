@@ -187,7 +187,28 @@ Installed Packages (Nonprofit Cloud):
 
 For complete list of objects, query: `sf sobject list --target-org pas-membership-sb`
 
+## Troubleshooting Standards
+
+⚠️ **IMPORTANT**: If you find yourself debugging the same issue for more than 2 attempts, immediately read `Planning/troubleshooting-standards.md`. This document covers:
+- Authority bias trap (blaming external systems when the problem is in your code)
+- Evidence-based debugging approach (read actual errors, read actual code, fix actual code)
+- False positive tests (tests passing while the app doesn't work)
+- When it's legitimate to investigate external systems vs when it's speculation
+
+**Key principle**: Follow the actual error → read the actual code → fix the actual code. Don't speculate about Clerk, Salesforce, or other systems without concrete evidence from DevTools or network requests.
+
 ## Testing Standards
+
+### ⚡ CRITICAL: Run Tests Before Delivering Work
+
+**ALWAYS** run `npm test:run` before telling the user the work is complete. This is not optional.
+
+❌ **NEVER** deliver features or bug fixes without:
+- Running the full test suite with `npm test:run`
+- Confirming all tests pass (no failures)
+- Fixing any failing tests before reporting completion
+
+**If any tests fail**, the work is NOT complete. Fix the failures and re-run tests until all pass.
 
 ### Overview
 This project follows comprehensive testing practices documented in `Planning/testing-standards.md`. **All new features must include tests** following these standards.

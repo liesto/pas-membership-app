@@ -8,8 +8,8 @@ describe('clerkApi', () => {
     it('should delete a user with valid userId', async () => {
       const userId = 'user_12345';
 
-      // Should not throw
-      await expect(deleteUser(userId)).resolves.toBeUndefined();
+      // Should resolve with success response
+      await expect(deleteUser(userId)).resolves.toEqual({ success: true });
     });
 
     it('should throw error when user deletion fails', async () => {
@@ -24,7 +24,7 @@ describe('clerkApi', () => {
       const userIds = ['user_123', 'user_abc_123', 'user_xyz-789'];
 
       for (const userId of userIds) {
-        await expect(deleteUser(userId)).resolves.toBeUndefined();
+        await expect(deleteUser(userId)).resolves.toEqual({ success: true });
       }
     });
   });

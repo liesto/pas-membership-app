@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { clerkClient } from '@clerk/backend';
+import { createClerkClient } from '@clerk/backend';
+
+const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+});
 
 const router = Router();
 

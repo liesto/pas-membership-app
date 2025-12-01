@@ -27,24 +27,33 @@ export interface ApiError {
   details?: any;
 }
 
-const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const SALESFORCE_API = `${API_BASE_URL}/salesforce`;
 
 /**
  * Create a Salesforce Contact record
  * @param contactData - Contact information to create
+ * @param token - Optional Clerk authentication token
  * @returns Promise with the created contact data
  * @throws Error if creation fails
  */
 export async function createContact(
-  contactData: CreateContactRequest
+  contactData: CreateContactRequest,
+  token?: string
 ): Promise<CreateContactResponse> {
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add authorization header if token is provided
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${SALESFORCE_API}/contacts`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(contactData),
       credentials: 'include', // Include cookies for auth
     });

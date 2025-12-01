@@ -1,4 +1,6 @@
 import axios from 'axios';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 interface AuthTokenResponse {
   access_token: string;
@@ -15,8 +17,30 @@ interface CachedToken {
 let cachedToken: CachedToken | null = null;
 
 /**
- * Get Salesforce access token using Integration User credentials
- * Uses OAuth 2.0 Resource Owner Password Credentials grant
+ * Generate PKCE code verifier and challenge
+ */
+function generatePKCE() {
+  const verifier = crypto
+    .randomBytes(32)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+
+  const challenge = crypto
+    .createHash('sha256')
+    .update(verifier)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+
+  return { verifier, challenge };
+}
+
+/**
+ * Get Salesforce access token using either JWT Bearer or OAuth flow
+ * JWT Bearer is the workaround when OAuth password grant fails
  */
 export async function getSalesforceAccessToken(): Promise<string> {
   // Check if cached token is still valid
@@ -27,28 +51,54 @@ export async function getSalesforceAccessToken(): Promise<string> {
 
   console.log('Requesting new Salesforce access token...');
 
+  const authMethod = process.env.SF_AUTH_METHOD || 'oauth';
   const loginUrl = process.env.SF_LOGIN_URL || 'https://test.salesforce.com';
-  const clientId = process.env.SF_CLIENT_ID;
-  const clientSecret = process.env.SF_CLIENT_SECRET;
-  const username = process.env.SF_INTEGRATION_USER_USERNAME;
-  const password = process.env.SF_INTEGRATION_USER_PASSWORD;
 
-  if (!clientId || !clientSecret || !username || !password) {
+  if (authMethod === 'jwt') {
+    return getAccessTokenViaJWT(loginUrl);
+  } else {
+    return getAccessTokenViaOAuth(loginUrl);
+  }
+}
+
+/**
+ * Get Salesforce access token using JWT Bearer flow (OAuth 2.0 JWT Bearer)
+ * This is a workaround for password grant flow issues
+ */
+async function getAccessTokenViaJWT(loginUrl: string): Promise<string> {
+  const clientId = process.env.SF_JWT_ISSUER;
+  const privateKey = process.env.SF_JWT_PRIVATE_KEY;
+  const subject = process.env.SF_JWT_SUBJECT;
+
+  if (!clientId || !privateKey || !subject) {
     throw new Error(
-      'Missing Salesforce credentials. Check your .env.local file.'
+      'Missing JWT credentials: SF_JWT_ISSUER, SF_JWT_PRIVATE_KEY, SF_JWT_SUBJECT'
     );
   }
 
   try {
+    // Create JWT assertion
+    const now = Math.floor(Date.now() / 1000);
+    const assertion = jwt.sign(
+      {
+        iss: clientId,
+        sub: subject,
+        aud: loginUrl,
+        exp: now + 300, // 5 minutes
+      },
+      privateKey.replace(/\\n/g, '\n'),
+      { algorithm: 'RS256' }
+    );
+
+    console.log('JWT assertion created, exchanging for access token...');
+
+    const params = new URLSearchParams();
+    params.append('grant_type', 'urn:ietf:params:oauth:grant-type:jwt-bearer');
+    params.append('assertion', assertion);
+
     const response = await axios.post<AuthTokenResponse>(
       `${loginUrl}/services/oauth2/token`,
-      {
-        grant_type: 'password',
-        client_id: clientId,
-        client_secret: clientSecret,
-        username: username,
-        password: password,
-      },
+      params,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -64,10 +114,63 @@ export async function getSalesforceAccessToken(): Promise<string> {
       expiresAt: Date.now() + (expires_in * 1000) - 300000,
     };
 
-    console.log(`Got Salesforce access token (expires in ${expires_in}s)`);
+    console.log(`Got Salesforce access token via JWT (expires in ${expires_in}s)`);
     return access_token;
   } catch (error: any) {
-    console.error('Salesforce authentication error:', error.response?.data || error.message);
+    console.error('JWT Bearer authentication error:', error.response?.data || error.message);
+    throw new Error(
+      `Failed to authenticate with Salesforce via JWT: ${
+        error.response?.data?.error_description || error.message
+      }`
+    );
+  }
+}
+
+/**
+ * Get Salesforce access token using Resource Owner Password Credentials flow
+ */
+async function getAccessTokenViaOAuth(loginUrl: string): Promise<string> {
+  const clientId = process.env.SF_CLIENT_ID;
+  const clientSecret = process.env.SF_CLIENT_SECRET;
+  const username = process.env.SF_INTEGRATION_USER_USERNAME;
+  const password = process.env.SF_INTEGRATION_USER_PASSWORD;
+
+  if (!clientId || !clientSecret || !username || !password) {
+    throw new Error(
+      'Missing OAuth credentials: SF_CLIENT_ID, SF_CLIENT_SECRET, SF_INTEGRATION_USER_USERNAME, SF_INTEGRATION_USER_PASSWORD'
+    );
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.append('grant_type', 'password');
+    params.append('client_id', clientId);
+    params.append('client_secret', clientSecret);
+    params.append('username', username);
+    params.append('password', password);
+
+    const response = await axios.post<AuthTokenResponse>(
+      `${loginUrl}/services/oauth2/token`,
+      params,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
+    );
+
+    const { access_token, expires_in } = response.data;
+
+    // Cache token with 5-minute buffer before expiration
+    cachedToken = {
+      token: access_token,
+      expiresAt: Date.now() + (expires_in * 1000) - 300000,
+    };
+
+    console.log(`Got Salesforce access token via OAuth (expires in ${expires_in}s)`);
+    return access_token;
+  } catch (error: any) {
+    console.error('OAuth authentication error:', error.response?.data || error.message);
     throw new Error(
       `Failed to authenticate with Salesforce: ${
         error.response?.data?.error_description || error.message

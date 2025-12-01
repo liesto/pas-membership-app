@@ -1,66 +1,37 @@
 /**
  * Clerk API Service
- * Handles user management operations including deletion for rollback
+ * Handles user management operations with Clerk backend API
  */
 
-const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:3000/api';
-const CLERK_API = `${API_BASE_URL}/clerk`;
-
-export interface ApiError {
-  error: string;
-  details?: any;
+export interface DeleteUserResponse {
+  success: boolean;
+  message?: string;
 }
 
 /**
- * Delete a Clerk user
- * Used for rollback when Salesforce contact creation fails
+ * Delete a Clerk user by ID
+ * This is used for rollback if Salesforce contact creation fails
  * @param userId - Clerk user ID to delete
- * @returns Promise that resolves when user is deleted
+ * @returns Promise that resolves if deletion is successful
  * @throws Error if deletion fails
  */
-export async function deleteUser(userId: string): Promise<void> {
+export async function deleteUser(userId: string): Promise<DeleteUserResponse> {
   try {
-    const response = await fetch(`${CLERK_API}/users/${userId}`, {
+    const response = await fetch(`/api/clerk/users/${userId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include', // Include cookies for auth
+      credentials: 'include',
     });
 
     if (!response.ok) {
-      const errorData = (await response.json()) as ApiError;
-      throw new Error(errorData.error || `Failed to delete user: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Failed to delete user: ${response.statusText}`);
     }
+
+    return { success: true };
   } catch (error) {
     if (error instanceof Error) {
       throw error;
     }
     throw new Error('An unexpected error occurred while deleting user');
-  }
-}
-
-/**
- * Get current user information
- * @returns Promise with user data
- * @throws Error if fetch fails
- */
-export async function getCurrentUser() {
-  try {
-    const response = await fetch(`${CLERK_API}/me`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch user: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('An unexpected error occurred while fetching user');
   }
 }
