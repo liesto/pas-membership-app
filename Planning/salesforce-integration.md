@@ -30,6 +30,15 @@ This document outlines the approach for integrating the PAS Membership App with 
   - Callback/Redirect URLs
 - Is the app configured for OAuth 2.0 Web Flow, or another authentication type?
 - Where are these credentials currently stored (local machine, secrets manager, etc.)?
+Answer - See below 
+- Credentials / keys
+-- If Client ID = Consumer Key, then Consumer Key = [See .env.local in backend folder]
+-- Consumer Secret = [See .env.local in backend folder]
+-- Callback URL = http://localhost:1717/OauthRedirect
+- OAuth 2.0 Web Flow question: I don't know how to answer that.  Enable OAuth Settings = True, Enable for Device Flow = false
+- Credentials are not stored anywhere now.  I authenticated to SF via this terminal command (using Salesforce CLI).
+I imagine I'll have to re-authenticate at some point. 
+- Consideration:  My integration (Salesforce CLI) is intended to be just so we can see the environment and deploy code.  I'd guess that we'll need to create a SF external app that uses a SF integration user login.  
 
 **Action Items:**
 - [ ] Get Connected App credentials from Salesforce dashboard
@@ -65,8 +74,11 @@ This document outlines the approach for integrating the PAS Membership App with 
 
 **Questions to answer:**
 1. Should the app respect individual user permissions in Salesforce?
+Answer - I'm not sure I understand the question.  If user means logged in user from the website, each user (member) will have their own data.  Currently, there is only one permission level envisioned.  In case we end up with different levels of access, each user should explicitly be assigned to a specific role (permission level)
 2. Do all members have equal access to all Contact/Opportunity data?
+Answer - Web app logged in users should only be able to see their specific data.  Contact data = data from the user's contact record.  Opportunity data = data from opportunities where primary contact = user's contact record. 
 3. Should admins have different permissions than regular members?
+Answer - In phase 1 there will be now admin role.  All management will occure in Salesforce.  
 
 **Recommendation**: Start with **Option A (OAuth 2.0 Web Flow)** because:
 - Connected App already exists
@@ -108,15 +120,20 @@ This document outlines the approach for integrating the PAS Membership App with 
 
 **Questions to answer:**
 1. How sensitive is the member data being queried?
+Answer - Assume very sensitive.  It's not Hipaa, but we want it to be secure. 
 2. Do we need to log all Salesforce interactions?
+Answer - I don't understand the question.  There will be plenty of contact/member interactions in salesforce that have nothing to do with membership.  We should log all web app interactions. 
 3. Will we need caching or rate limiting?
+Answer - This is a low volume app (< 5,000 members), so I don't think we need to architect for this now.  
 4. Should we implement any data transformation before sending to frontend?
+Answer - I don't think so.  Let's assume that I can get the app what it needs from Salesforce, in the format it needs.
 
 **Recommendation**: Start with **Option B (Backend Server)** because:
 - Better security for production (even though localhost for now)
 - CORS not an issue (common pain point)
 - Easier to add logging/auditing later
 - Can use Node.js + Express alongside the React app
+Comment - This is fine if you think we can handle that level of complexity while we're developing.  I agree that we'll probably want this before we launch.  You decide on which option.  
 
 ---
 
@@ -169,8 +186,11 @@ NODE_ENV=development
 
 **Questions to answer:**
 1. Should the backend be in the same repository or separate?
+Answer - I don't know.  I defer to your recommendation. 
 2. Should we use Node.js/Express, or another backend framework?
+Answer - I'd stick with Node for now. 
 3. Do we need database persistence (e.g., to cache Salesforce data)?
+Answer - I don't think we need that now.  We can call Salesforce if we need to. 
 
 **Recommendation**:
 - Backend in **same repository** (easier for localhost development)
@@ -214,8 +234,11 @@ pas-membership-app/
 
 **Questions to answer:**
 1. Should backend be in same repo or separate?
+Answer - I don't know.  I defer to your recommendation.
 2. What backend hosting provider? (Heroku, AWS Lambda, etc.)
+Answer - Can we skip this during development & decide later?
 3. Do we need CI/CD pipelines now, or add later?
+Answer - Later
 
 **Recommendation**:
 - Keep both in **same monorepo** (easier for localhost development)
@@ -280,20 +303,28 @@ pas-membership-app/
 Before proceeding with implementation:
 
 1. **Connected App Details**: Can you provide the Client ID and any documentation about what scopes/permissions it has?
+Answer - See above
 
 2. **Data Sensitivity**: How sensitive is the member contact and opportunity data? Does it contain PII that needs extra protection?
+Answer - See above
 
 3. **User Permissions**: Should different members see different data in Salesforce, or should all members have access to all data?
+Answer - See above
 
 4. **Rate Limiting**: Do we expect high volume of Salesforce queries, or is it low-volume (few requests per session)?
+Answer - See above
 
 5. **Caching**: Should we cache member profile data locally (faster, but might be stale), or always query fresh from Salesforce?
+Answer - See above - Query fresh from Salesforce
 
 6. **Error Handling**: When Salesforce API fails, what should the user see? Error message? Cached data? Graceful degradation?
+Answer - Error message for now.  We'll refine UI later.
 
 7. **Audit Trail**: Do we need to log who queried/modified what in Salesforce?
+Answer - Not during dev.  That can be later. 
 
 8. **Future Production**: When we deploy to production (Netlify + backend), what hosting services do you prefer? (Heroku, AWS, Azure, etc.)
+Answer - See above
 
 ---
 

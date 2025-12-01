@@ -54,7 +54,12 @@ These must be completed in Salesforce before Claude can begin backend implementa
 
 ## Claude Action Items (Next Session)
 
-### Phase 1: Backend Setup & OAuth Authentication
+### Phase 1: Backend Setup & Salesforce Integration User Authentication
+
+**IMPORTANT CLARIFICATION:**
+- **Web App Users**: Authenticate via Clerk (NOT Salesforce)
+- **Backend**: Authenticates to Salesforce using Integration User credentials (Service Account)
+- **Flow**: Clerk User → Backend API → Salesforce (via Integration User token)
 
 **1. Create Backend Directory Structure**
 ```
@@ -85,32 +90,41 @@ backend/
 - cors (cross-origin requests)
 - TypeScript types
 
-**3. Implement OAuth 2.0 Flow**
+**3. Implement Salesforce Integration User Authentication**
+**Backend authenticates to Salesforce** (not the web user):
+- Use Integration User username/password from `.env.local`
+- Get access token from Salesforce via REST API
+- Store token in memory (or cache with TTL)
+- Implement token refresh logic (when expired)
+
 **Endpoints to create**:
-- `GET /auth/login` → Redirect to Salesforce login
-- `GET /auth/callback` → Handle Salesforce callback, store token
-- `GET /auth/logout` → Clear session
-- `GET /auth/status` → Check if user is authenticated
+- `POST /api/salesforce/contacts/me` → Get logged-in user's contact from SF
+- `GET /api/salesforce/opportunities/me` → Get logged-in user's opportunities from SF
+- `POST /api/salesforce/contacts` → Create new contact in SF
+- `POST /api/salesforce/opportunities` → Create new opportunity in SF
 
-**Token Management**:
-- Use httpOnly cookies (not localStorage)
-- Implement refresh token logic
-- Secure storage of access tokens
+**Authentication Flow**:
+1. Web app user logs in via Clerk (frontend handles this)
+2. Web app user makes API call to backend (includes Clerk auth token)
+3. Backend verifies Clerk token is valid
+4. Backend uses Integration User credentials to get Salesforce token
+5. Backend queries Salesforce with Integration User token
+6. Backend filters/returns only data relevant to logged-in user
 
-**4. Test OAuth Flow Locally**
+**4. Test Backend Salesforce Connection Locally**
 - Start backend on `localhost:3000`
-- Navigate to `http://localhost:3000/auth/login`
-- Verify redirect to Salesforce
-- Verify callback and token storage
-- Verify `/auth/status` returns authenticated state
+- Test that backend can authenticate to Salesforce with integration user
+- Test that backend can query Contact and Opportunity objects
+- Test that tokens refresh when expired
+- Verify error handling when Salesforce is unreachable
 
 **Success Criteria for Phase 1**:
-- ✅ User can click "Login with Salesforce"
-- ✅ User is redirected to Salesforce login
-- ✅ User authenticates with integration user credentials
-- ✅ User is redirected back to app
-- ✅ Backend has valid access token in secure cookie
-- ✅ Token can be refreshed when expired
+- ✅ Backend can authenticate to Salesforce using integration user credentials
+- ✅ Backend can successfully query Contact objects
+- ✅ Backend can successfully query Opportunity objects
+- ✅ Backend handles token expiration and refresh
+- ✅ Backend has proper error handling for Salesforce API failures
+- ✅ Salesforce access token is stored securely in memory
 
 ---
 
@@ -118,19 +132,18 @@ backend/
 
 **Provide at start of next session**:
 ```
-Integration User Credentials:
+Salesforce Integration User Credentials:
+(The service account the backend will use to authenticate)
 - Username: __________________
 - Password: __________________
-
-Connected App Credentials:
-- Consumer Key (Client ID): __________________
-- Consumer Secret: __________________
-- Callback URL: http://localhost:3000/auth/callback
+- Instance URL: https://test.salesforce.com
 
 Salesforce Org Details:
-- Instance URL: https://test.salesforce.com
 - Membership RecordType ID: __________________
+(Query in SOQL: SELECT Id, Name FROM RecordType WHERE Name = 'Membership' AND SobjectType = 'Opportunity')
 ```
+
+**Note**: We don't need OAuth Consumer Key/Secret anymore since we're using Service Account authentication with username/password.
 
 ---
 
