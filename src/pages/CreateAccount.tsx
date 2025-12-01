@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useSignUp, useAuth } from "@clerk/clerk-react";
+import { useSignUp, useAuth, useUser } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import logo from "@/assets/pisgah-logo.png";
 import ReCAPTCHA from "react-google-recaptcha";
+import { createContact } from "@/services/salesforceApi";
+import { deleteUser as deleteClerkUser } from "@/services/clerkApi";
+import { validatePhoneNumber, getPhoneErrorMessage } from "@/utils/validation";
 
 const CreateAccount = () => {
   const navigate = useNavigate();
@@ -24,6 +27,7 @@ const CreateAccount = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -48,6 +52,13 @@ const CreateAccount = () => {
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate phone if provided
+    if (phone && !validatePhoneNumber(phone)) {
+      setPhoneError(getPhoneErrorMessage(phone));
+      return;
+    }
+    setPhoneError("");
+
     // Only validate required fields: firstName, lastName, email, password, confirmPassword
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
       setCreateAccountError("Please fill in all required fields (First Name, Last Name, Email, Password)");
@@ -66,11 +77,12 @@ const CreateAccount = () => {
 
     setIsCreatingAccount(true);
     setCreateAccountError("");
+    let clerkUserId: string | null = null;
 
     try {
       console.log("Creating account with email:", email, "firstName:", firstName, "lastName:", lastName);
 
-      // Create the user in Clerk
+      // Step 1: Create the user in Clerk
       const result = await signUp.create({
         emailAddress: email,
         password: password,
@@ -81,36 +93,68 @@ const CreateAccount = () => {
       console.log("Sign up status:", result.status);
       console.log("Created session ID:", result.createdSessionId);
 
-      if (result.status === "complete") {
-        console.log("Account created successfully, setting active session:", result.createdSessionId);
-        await setActive?.({ session: result.createdSessionId });
-        toast.success("Account created successfully!");
-        navigate("/my-account");
-      } else if (result.status === "missing_requirements") {
-        console.log("Missing requirements detected");
-        console.log("Created session ID available:", !!result.createdSessionId);
-        // Clerk requires email verification - even with missing_requirements, we can proceed if there's a session
-        if (result.createdSessionId) {
-          console.log("Setting active session despite missing requirements");
-          await setActive?.({ session: result.createdSessionId });
-          toast.success("Account created successfully!");
-          navigate("/my-account");
-        } else {
-          console.log("No session ID available - email verification required");
-          setCreateAccountError("Account creation requires email verification. Please check your email.");
-        }
-      } else {
+      // Check if we have a valid session before proceeding to Salesforce
+      const canProceed = result.status === "complete" ||
+                        (result.status === "missing_requirements" && result.createdSessionId);
+
+      if (!canProceed) {
         console.log("Unexpected status:", result.status);
         setCreateAccountError("Account creation failed. Please try again.");
+        setIsCreatingAccount(false);
+        return;
       }
-    } catch (err: any) {
-      console.error("Sign up error:", err);
-      let errorMessage = "An error occurred while creating your account";
 
-      if (err?.errors && Array.isArray(err.errors)) {
-        errorMessage = err.errors[0]?.message || errorMessage;
-      } else if (err?.message) {
+      // Store the user ID for potential rollback
+      clerkUserId = result.createdSessionId;
+
+      // Step 2: Create the contact in Salesforce
+      console.log("Creating Salesforce contact...");
+      const contactData = {
+        firstName,
+        lastName,
+        email,
+        ...(phone && { phone }),
+        ...(city && { city }),
+        ...(state && { state }),
+      };
+
+      await createContact(contactData);
+      console.log("Salesforce contact created successfully");
+
+      // Step 3: Set active session and navigate
+      if (result.createdSessionId) {
+        console.log("Setting active session");
+        await setActive?.({ session: result.createdSessionId });
+      }
+
+      toast.success("Account created successfully!");
+      navigate("/my-account");
+    } catch (err: any) {
+      console.error("Account creation error:", err);
+
+      // Handle Salesforce failure - rollback Clerk user
+      if (clerkUserId) {
+        console.log("Attempting to rollback Clerk user due to Salesforce failure");
+        try {
+          await deleteClerkUser(clerkUserId);
+          console.log("Clerk user deleted successfully");
+        } catch (rollbackErr) {
+          console.error("Failed to rollback Clerk user:", rollbackErr);
+          let errorMessage = "Account creation failed and we couldn't clean up properly. Please contact support.";
+          setCreateAccountError(errorMessage);
+          toast.error(errorMessage);
+          setIsCreatingAccount(false);
+          return;
+        }
+      }
+
+      // Show error message for Salesforce failure
+      let errorMessage = "Failed to create your profile. Please try again.";
+
+      if (err?.message) {
         errorMessage = err.message;
+      } else if (err?.error) {
+        errorMessage = err.error;
       }
 
       setCreateAccountError(errorMessage);
@@ -258,10 +302,23 @@ const CreateAccount = () => {
                   type="tel"
                   placeholder="Phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    // Clear error when user starts typing
+                    if (phoneError) setPhoneError("");
+                  }}
+                  onBlur={() => {
+                    // Validate on blur if phone is provided
+                    if (phone && !validatePhoneNumber(phone)) {
+                      setPhoneError(getPhoneErrorMessage(phone));
+                    }
+                  }}
                   disabled={isCreatingAccount}
-                  className="h-12"
+                  className={`h-12 ${phoneError ? 'border-red-500' : ''}`}
                 />
+                {phoneError && (
+                  <p className="text-sm text-red-600 font-medium">{phoneError}</p>
+                )}
               </div>
 
               <div className="space-y-2">
