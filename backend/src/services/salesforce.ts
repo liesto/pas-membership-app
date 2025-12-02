@@ -15,8 +15,6 @@ export interface Contact {
   LastName: string;
   Email: string;
   Phone?: string;
-  City?: string;
-  State?: string;
 }
 
 export interface CreateOpportunityRequest {
@@ -49,12 +47,8 @@ export async function createContact(
   if (data.phone) {
     payload.Phone = data.phone;
   }
-  if (data.city) {
-    payload.City = data.city;
-  }
-  if (data.state) {
-    payload.State = data.state;
-  }
+  // Note: Standard Salesforce Contact object doesn't have City/State fields
+  // These would need to be stored in a custom object or mapped differently
 
   try {
     const result = await callSalesforceApi('POST', '/sobjects/Contact/', payload);
@@ -68,8 +62,6 @@ export async function createContact(
       LastName: data.lastName,
       Email: data.email,
       Phone: data.phone,
-      City: data.city,
-      State: data.state,
     };
   } catch (error: any) {
     console.error('Failed to create contact:', error.message);
@@ -84,7 +76,7 @@ export async function getContactByEmail(email: string): Promise<Contact | null> 
   console.log('Querying Contact by email:', email);
 
   try {
-    const query = `SELECT Id, FirstName, LastName, Email, Phone, City, State FROM Contact WHERE Email='${email}' LIMIT 1`;
+    const query = `SELECT Id, FirstName, LastName, Email, Phone FROM Contact WHERE Email='${email}' LIMIT 1`;
     const result = await callSalesforceApi(
       'GET',
       `/query?q=${encodeURIComponent(query)}`
