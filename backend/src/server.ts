@@ -6,9 +6,9 @@ dotenv.config({ path: '.env.local' });
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { verifyClerkToken } from './middleware/auth.js';
-import salesforceRoutes from './routes/salesforce.js';
-import clerkRoutes from './routes/clerk.js';
+import { verifyClerkToken } from './middleware/auth.ts';
+import salesforceRoutes from './routes/salesforce.ts';
+import clerkRoutes from './routes/clerk.ts';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -84,7 +84,7 @@ async function testConnections() {
   try {
     // Test Salesforce connection
     console.log('Testing Salesforce connection...');
-    const { verifySalesforceConnection } = await import('./services/auth.js');
+    const { verifySalesforceConnection } = await import('./services/auth.ts');
     const isConnected = await verifySalesforceConnection();
 
     if (isConnected) {

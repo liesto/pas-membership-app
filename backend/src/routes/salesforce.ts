@@ -1,12 +1,13 @@
 import { Router } from 'express';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
+import type { AuthenticatedRequest } from '../middleware/auth.ts';
+import { requireAuth } from '../middleware/auth.ts';
 import {
   createContact,
   getContactByEmail,
   getContactById,
   createOpportunity,
   getOpportunitiesByContactId,
-} from '../services/salesforce.js';
+} from '../services/salesforce.ts';
 
 const router = Router();
 

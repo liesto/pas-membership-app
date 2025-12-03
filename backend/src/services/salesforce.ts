@@ -1,4 +1,4 @@
-import { callSalesforceApi } from './auth.js';
+import { callSalesforceApi } from './auth.ts';
 
 export interface CreateContactRequest {
   firstName: string;

@@ -1,10 +1,13 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '@clerk/backend';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
   clerkToken?: string;
 }
+
+// Re-export Request, Response, NextFunction types
+export type { Request, Response, NextFunction };
 
 /**
  * Middleware to verify Clerk token from Authorization header
