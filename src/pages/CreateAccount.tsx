@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import logo from "@/assets/pisgah-logo.png";
-import ReCAPTCHA from "react-google-recaptcha";
 import { createContact } from "@/services/salesforceApi";
 import { deleteUser as deleteClerkUser } from "@/services/clerkApi";
 import { validatePhoneNumber, getPhoneErrorMessage } from "@/utils/validation";
@@ -34,7 +33,6 @@ const CreateAccount = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
-  const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [createAccountError, setCreateAccountError] = useState("");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
@@ -404,12 +402,7 @@ const CreateAccount = () => {
                 </div>
               </div>
 
-              <div className="flex justify-center py-4">
-                <ReCAPTCHA
-                  sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
-                  onChange={(value) => setCaptchaValue(value)}
-                />
-              </div>
+              <div id="clerk-captcha"></div>
 
               <Button
                 type="submit"
