@@ -88,3 +88,105 @@ export async function testSalesforceConnection(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Membership signup interfaces and function
+ */
+
+export interface CreateMembershipRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  mailingStreet?: string;
+  mailingCity?: string;
+  mailingState?: string;
+  mailingPostalCode?: string;
+  emailOptIn: boolean;
+  membershipLevel: 'bronze' | 'silver' | 'gold';
+  membershipTerm: 'monthly' | 'annual';
+}
+
+export interface CreateMembershipResponse {
+  success: true;
+  contact: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    accountId: string;
+  };
+  opportunity: {
+    id: string;
+    name: string;
+    amount: number;
+    membershipStartDate: string;
+    membershipEndDate: string;
+  };
+}
+
+/**
+ * Create a membership signup (Contact + Opportunity)
+ * @param membershipData - Complete membership signup data
+ * @param token - Optional Clerk authentication token
+ * @returns Promise with contact and opportunity data
+ * @throws Error if creation fails at any stage
+ */
+export async function createMembership(
+  membershipData: CreateMembershipRequest,
+  token?: string
+): Promise<CreateMembershipResponse> {
+  console.log('[SalesforceAPI] Creating membership:', {
+    email: membershipData.email,
+    level: membershipData.membershipLevel,
+    term: membershipData.membershipTerm,
+    timestamp: new Date().toISOString(),
+  });
+
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add authorization header if token is provided
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${SALESFORCE_API}/membership`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(membershipData),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as ApiError & { stage?: string; contactId?: string };
+      const errorMessage = errorData.error || `Failed to create membership: ${response.statusText}`;
+
+      console.error('[SalesforceAPI] Membership creation failed:', {
+        error: errorMessage,
+        stage: errorData.stage,
+        contactId: errorData.contactId,
+        timestamp: new Date().toISOString(),
+      });
+
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json() as CreateMembershipResponse;
+
+    console.log('[SalesforceAPI] Membership created successfully:', {
+      contactId: result.contact.id,
+      opportunityId: result.opportunity.id,
+      timestamp: new Date().toISOString(),
+    });
+
+    return result;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unexpected error occurred while creating membership');
+  }
+}

@@ -43,11 +43,13 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Clerk token verification middleware
+// Public Salesforce endpoints (no auth required) - must be registered before auth middleware
+app.use('/api/salesforce', salesforceRoutes);
+
+// Clerk token verification middleware (applies to routes registered AFTER this point)
 app.use('/api', verifyClerkToken);
 
-// Routes
-app.use('/api/salesforce', salesforceRoutes);
+// Protected routes
 app.use('/api/clerk', clerkRoutes);
 
 // 404 handler

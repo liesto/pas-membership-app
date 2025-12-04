@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CreditCard, Check, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,22 +14,19 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import logo from "@/assets/pisgah-logo.png";
+import { createMembership, type CreateMembershipRequest } from "@/services/salesforceApi";
 
 const signupSchema = z.object({
   membershipLevel: z.enum(["bronze", "silver", "gold"]),
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  address: z.string().min(5, "Address must be at least 5 characters"),
-  city: z.string().min(2, "City is required"),
-  state: z.string().min(2, "State is required"),
-  zipCode: z.string().min(5, "ZIP code must be at least 5 digits"),
-  emailOptIn: z.boolean().default(false),
-  cardNumber: z.string().min(16, "Card number must be 16 digits"),
-  cardName: z.string().min(3, "Cardholder name is required"),
-  expiryDate: z.string().regex(/^\d{2}\/\d{2}$/, "Format: MM/YY"),
-  cvv: z.string().min(3, "CVV must be 3 digits"),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().regex(/^\d{5}$/, "ZIP code must be 5 digits").optional().or(z.literal('')),
+  emailOptIn: z.boolean().default(true),
   paymentFrequency: z.enum(["monthly", "annual"]),
 });
 
@@ -56,9 +53,12 @@ type EmailStatus = "idle" | "checking" | "available" | "taken";
 
 const Signup = () => {
   const [searchParams] = useSearchParams();
-  const initialLevel = (searchParams.get("level") || "bronze") as keyof typeof membershipLevels;
+  const initialLevel = (searchParams.get("level") || "silver") as keyof typeof membershipLevels;
 
   const [emailStatus, setEmailStatus] = useState<EmailStatus>("idle");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionStage, setSubmissionStage] = useState<string>('');
+  const navigate = useNavigate();
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -72,11 +72,7 @@ const Signup = () => {
       city: "",
       state: "",
       zipCode: "",
-      emailOptIn: false,
-      cardNumber: "",
-      cardName: "",
-      expiryDate: "",
-      cvv: "",
+      emailOptIn: true,
       paymentFrequency: "annual",
     },
   });
@@ -104,15 +100,84 @@ const Signup = () => {
     return () => clearTimeout(timer);
   }, [emailValue]);
 
-  const onSubmit = (data: SignupFormValues) => {
+  const onSubmit = async (data: SignupFormValues) => {
     if (emailStatus === "taken") {
       toast.error("This email is already registered. Please use a different email or log in.");
       return;
     }
-    console.log("Membership signup:", data);
-    toast.success("Welcome to Pisgah Area SORBA!", {
-      description: `Your ${membership.name} membership is being processed.`,
-    });
+
+    setIsSubmitting(true);
+    setSubmissionStage('Preparing signup...');
+
+    try {
+      // Log form submission
+      console.log('[Signup] Form submitted:', {
+        email: data.email,
+        membershipLevel: data.membershipLevel,
+        paymentFrequency: data.paymentFrequency,
+        timestamp: new Date().toISOString()
+      });
+
+      // Update stage
+      setSubmissionStage('Creating contact...');
+      console.log('[Signup] Stage: Creating contact');
+
+      // Prepare membership data
+      const membershipData: CreateMembershipRequest = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone || undefined,
+        mailingStreet: data.address || undefined,
+        mailingCity: data.city || undefined,
+        mailingState: data.state || undefined,
+        mailingPostalCode: data.zipCode || undefined,
+        emailOptIn: data.emailOptIn,
+        membershipLevel: data.membershipLevel,
+        membershipTerm: data.paymentFrequency === 'annual' ? 'annual' : 'monthly',
+      };
+
+      // Call Salesforce API
+      const result = await createMembership(membershipData);
+
+      console.log('[Signup] Contact created:', result.contact.id);
+      setSubmissionStage('Creating membership...');
+      console.log('[Signup] Stage: Creating membership opportunity');
+
+      // Log success
+      console.log('[Signup] Membership created successfully:', {
+        contactId: result.contact.id,
+        opportunityId: result.opportunity.id,
+        amount: result.opportunity.amount,
+        timestamp: new Date().toISOString()
+      });
+
+      // Show success toast
+      toast.success('Membership Created!', {
+        description: `Welcome to Pisgah Area SORBA, ${data.firstName}!`,
+      });
+
+      // Redirect to confirmation page
+      console.log('[Signup] Redirecting to confirmation page');
+      navigate('/confirmation');
+
+    } catch (error) {
+      console.error('[Signup] Submission failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stage: submissionStage,
+        timestamp: new Date().toISOString()
+      });
+
+      // Show detailed error message
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      toast.error('Signup Failed', {
+        description: errorMessage,
+        duration: 10000,
+      });
+    } finally {
+      setIsSubmitting(false);
+      setSubmissionStage('');
+    }
   };
 
   return (
@@ -374,71 +439,6 @@ const Signup = () => {
                     </div>
                   </div>
 
-                  {/* Payment Information */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Payment Information</h3>
-                    </div>
-                    
-                    <FormField
-                      control={form.control}
-                      name="cardName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cardholder Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="John Doe" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="cardNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Card Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="1234 5678 9012 3456" maxLength={16} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="expiryDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Expiry Date</FormLabel>
-                            <FormControl>
-                              <Input placeholder="MM/YY" maxLength={5} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="cvv"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>CVV</FormLabel>
-                            <FormControl>
-                              <Input placeholder="123" maxLength={3} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
                   {/* Email Opt-in */}
                   <FormField
                     control={form.control}
@@ -465,8 +465,21 @@ const Signup = () => {
                         <span className="text-muted-foreground"> / {paymentFrequency === "annual" ? "year" : "month"}</span>
                       </p>
                     </div>
-                    <Button type="submit" variant="hero" size="lg" className="w-full md:w-auto min-w-[200px]">
-                      Join Now
+                    <Button
+                      type="submit"
+                      variant="hero"
+                      size="lg"
+                      className="w-full md:w-auto min-w-[200px]"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {submissionStage}
+                        </>
+                      ) : (
+                        'Join Now'
+                      )}
                     </Button>
                     <p className="text-xs text-muted-foreground text-center max-w-md">
                       By joining, you agree to support trail maintenance and advocacy in the Pisgah area.
