@@ -1,7 +1,25 @@
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-// Load .env.local from backend root
-dotenv.config({ path: '.env.local' });
+// Get the directory of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load .env.local from backend root (go up from src/ to backend/)
+const envPath = join(__dirname, '..', '.env.local');
+console.log('[Server] Loading .env.local from:', envPath);
+const result = dotenv.config({ path: envPath });
+
+if (result.error) {
+  console.error('[Server] Failed to load .env.local:', result.error);
+} else {
+  console.log('[Server] Loaded environment variables:', {
+    hasClerkKey: !!process.env.CLERK_SECRET_KEY,
+    clerkKeyPrefix: process.env.CLERK_SECRET_KEY?.substring(0, 10),
+    hasSFUsername: !!process.env.SF_INTEGRATION_USER_USERNAME,
+  });
+}
 
 import express from 'express';
 import cors from 'cors';

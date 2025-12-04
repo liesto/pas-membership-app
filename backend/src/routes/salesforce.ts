@@ -9,9 +9,11 @@ import {
   getOpportunitiesByContactId,
   createMembershipContact,
   createMembershipOpportunity,
+  updateContactClerkUserId,
   type MembershipLevel,
   type MembershipTerm,
 } from '../services/salesforce.ts';
+import { createClerkUser } from '../services/clerk.ts';
 
 const router = Router();
 
@@ -293,8 +295,50 @@ router.post('/membership', async (req, res) => {
       });
     }
 
+    // Stage 3: Create Clerk User
+    console.log('[API] Opportunity created, starting Clerk user creation...');
+    let clerkUserId;
+    let clerkUserCreated = false;
+    try {
+      clerkUserId = await createClerkUser(email, firstName, lastName);
+      clerkUserCreated = true;
+
+      console.log('[API] Clerk user created successfully:', {
+        clerkUserId,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Stage 4: Update Salesforce Contact with Clerk User ID
+      console.log('[API] Updating Salesforce Contact with Clerk User ID...');
+      try {
+        await updateContactClerkUserId(contact.Id, clerkUserId);
+        console.log('[API] Contact updated with Clerk User ID');
+      } catch (updateError: any) {
+        // Log but don't fail - Contact and Opportunity are already created
+        console.error('[API] Warning: Failed to update Contact with Clerk User ID:', {
+          error: updateError.message,
+          contactId: contact.Id,
+          clerkUserId,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (clerkError: any) {
+      // Log but don't fail the entire signup
+      // Contact and Opportunity are already created in Salesforce
+      console.error('[API] Warning: Failed to create Clerk user (marking as pending):', {
+        error: clerkError.message,
+        contactId: contact.Id,
+        opportunityId: opportunity.Id,
+        timestamp: new Date().toISOString(),
+      });
+      // User will be marked as "pending Clerk setup" by not having a Clerk_User_Id__c value
+    }
+
     // Success
-    console.log('[API] Membership signup completed successfully');
+    console.log('[API] Membership signup completed successfully', {
+      clerkUserCreated,
+      timestamp: new Date().toISOString(),
+    });
     res.status(201).json({
       success: true,
       contact: {
@@ -303,6 +347,7 @@ router.post('/membership', async (req, res) => {
         lastName: contact.LastName,
         email: contact.Email,
         accountId: contact.AccountId,
+        clerkUserId: clerkUserId || null,
       },
       opportunity: {
         id: opportunity.Id,
@@ -311,6 +356,7 @@ router.post('/membership', async (req, res) => {
         membershipStartDate: opportunity.MembershipStartDate,
         membershipEndDate: opportunity.MembershipEndDate,
       },
+      clerkUserCreated,
     });
   } catch (error: any) {
     console.error('[API] Unexpected error during membership signup:', error);

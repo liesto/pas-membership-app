@@ -1,9 +1,20 @@
 import { Router } from 'express';
 import { createClerkClient } from '@clerk/backend';
 
-const clerkClient = createClerkClient({
-  secretKey: process.env.CLERK_SECRET_KEY,
-});
+let clerkClient: ReturnType<typeof createClerkClient> | null = null;
+
+/**
+ * Get or create the Clerk client instance
+ * Lazy initialization to ensure environment variables are loaded
+ */
+function getClerkClient(): ReturnType<typeof createClerkClient> {
+  if (!clerkClient) {
+    clerkClient = createClerkClient({
+      secretKey: process.env.CLERK_SECRET_KEY,
+    });
+  }
+  return clerkClient;
+}
 
 const router = Router();
 
@@ -25,7 +36,8 @@ router.delete('/users/:userId', async (req, res) => {
     console.log('Deleting Clerk user:', userId);
 
     // Delete the user using Clerk SDK
-    await clerkClient.users.deleteUser(userId);
+    const client = getClerkClient();
+    await client.users.deleteUser(userId);
 
     console.log('Clerk user deleted successfully:', userId);
 

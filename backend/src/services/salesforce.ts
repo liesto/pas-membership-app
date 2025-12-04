@@ -405,3 +405,42 @@ export async function createMembershipOpportunity(
     throw new Error(`Failed to create opportunity: ${error.message}`);
   }
 }
+
+/**
+ * Update Contact with Clerk User ID
+ * @param contactId - Salesforce Contact ID
+ * @param clerkUserId - Clerk User ID to store
+ */
+export async function updateContactClerkUserId(
+  contactId: string,
+  clerkUserId: string
+): Promise<void> {
+  console.log('[Salesforce] Updating Contact with Clerk User ID:', {
+    contactId,
+    clerkUserId,
+    timestamp: new Date().toISOString(),
+  });
+
+  const payload = {
+    Clerk_User_Id__c: clerkUserId,
+  };
+
+  try {
+    await callSalesforceApi('PATCH', `/sobjects/Contact/${contactId}`, payload);
+
+    console.log('[Salesforce] Contact updated with Clerk User ID:', {
+      contactId,
+      clerkUserId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('[Salesforce] Failed to update Contact with Clerk User ID:', {
+      contactId,
+      clerkUserId,
+      error: error.message,
+      errorDetails: error,
+      timestamp: new Date().toISOString(),
+    });
+    throw new Error(`Failed to update Contact with Clerk User ID: ${error.message}`);
+  }
+}
