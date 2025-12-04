@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,15 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CreditCard } from "lucide-react";
+import { ArrowLeft, CreditCard, Check, X, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import logo from "@/assets/pisgah-logo.png";
 
 const signupSchema = z.object({
+  membershipLevel: z.enum(["bronze", "silver", "gold"]),
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
@@ -39,14 +41,29 @@ const membershipLevels = {
   gold: { name: "Gold", annualPrice: 250, monthlyPrice: 25 },
 };
 
+const usStates = [
+  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
+  "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa",
+  "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan",
+  "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire",
+  "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+  "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+  "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia",
+  "Wisconsin", "Wyoming"
+];
+
+type EmailStatus = "idle" | "checking" | "available" | "taken";
+
 const Signup = () => {
   const [searchParams] = useSearchParams();
-  const level = (searchParams.get("level") || "bronze") as keyof typeof membershipLevels;
-  const membership = membershipLevels[level];
+  const initialLevel = (searchParams.get("level") || "bronze") as keyof typeof membershipLevels;
+
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>("idle");
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
+      membershipLevel: initialLevel,
       firstName: "",
       lastName: "",
       email: "",
@@ -64,11 +81,35 @@ const Signup = () => {
     },
   });
 
+  const selectedLevel = form.watch("membershipLevel");
+  const membership = membershipLevels[selectedLevel];
   const paymentFrequency = form.watch("paymentFrequency");
+  const emailValue = form.watch("email");
   const price = paymentFrequency === "annual" ? membership.annualPrice : membership.monthlyPrice;
 
+  // Email validation with debounce
+  useEffect(() => {
+    if (!emailValue || !z.string().email().safeParse(emailValue).success) {
+      setEmailStatus("idle");
+      return;
+    }
+
+    setEmailStatus("checking");
+    const timer = setTimeout(async () => {
+      // TODO: Replace with actual database check when Lovable Cloud is enabled
+      // For now, simulating a check - always returns available
+      setEmailStatus("available");
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [emailValue]);
+
   const onSubmit = (data: SignupFormValues) => {
-    console.log("Membership signup:", { level, ...data });
+    if (emailStatus === "taken") {
+      toast.error("This email is already registered. Please use a different email or log in.");
+      return;
+    }
+    console.log("Membership signup:", data);
     toast.success("Welcome to Pisgah Area SORBA!", {
       description: `Your ${membership.name} membership is being processed.`,
     });
@@ -96,7 +137,7 @@ const Signup = () => {
           <Card className="border-primary/20 shadow-elegant">
             <CardHeader className="space-y-1 text-center pb-8">
               <CardTitle className="text-3xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-                Join as {membership.name} Member
+                Become a Member
               </CardTitle>
               <CardDescription className="text-base">
                 Complete your membership registration
@@ -106,8 +147,46 @@ const Signup = () => {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                  {/* Payment Frequency */}
-                  <div className="space-y-4 p-6 rounded-lg bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/10">
+                  {/* Membership Level & Payment Frequency */}
+                  <div className="space-y-6 p-6 rounded-lg bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/10">
+                    <FormField
+                      control={form.control}
+                      name="membershipLevel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-lg font-semibold">Membership Level</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select a membership level" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="bronze">
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="font-medium">Bronze</span>
+                                  <span className="text-muted-foreground ml-4">$50/year or $5/month</span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="silver">
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="font-medium">Silver</span>
+                                  <span className="text-muted-foreground ml-4">$100/year or $10/month</span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="gold">
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="font-medium">Gold</span>
+                                  <span className="text-muted-foreground ml-4">$250/year or $25/month</span>
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="paymentFrequency"
@@ -184,9 +263,30 @@ const Signup = () => {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="john@example.com" {...field} />
-                          </FormControl>
+                          <div className="relative">
+                            <FormControl>
+                              <Input type="email" placeholder="john@example.com" {...field} className="pr-10" />
+                            </FormControl>
+                            {emailStatus !== "idle" && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                {emailStatus === "checking" && (
+                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                )}
+                                {emailStatus === "available" && (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                )}
+                                {emailStatus === "taken" && (
+                                  <X className="h-4 w-4 text-destructive" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {emailStatus === "available" && (
+                            <p className="text-sm text-green-500">This email is available</p>
+                          )}
+                          {emailStatus === "taken" && (
+                            <p className="text-sm text-destructive">This email is already registered. Please log in or use a different email.</p>
+                          )}
                           <FormMessage />
                         </FormItem>
                       )}
@@ -240,9 +340,20 @@ const Signup = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>State</FormLabel>
-                            <FormControl>
-                              <Input placeholder="NC" {...field} />
-                            </FormControl>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select State" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {usStates.map((stateName) => (
+                                  <SelectItem key={stateName} value={stateName}>
+                                    {stateName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
