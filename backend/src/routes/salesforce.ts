@@ -20,10 +20,10 @@ const router = Router();
 /**
  * POST /api/salesforce/contacts
  * Create a new Contact in Salesforce
+ * Public endpoint - no auth required for signup flow
  */
 router.post(
   '/contacts',
-  requireAuth,
   async (req: AuthenticatedRequest, res) => {
     try {
       const { firstName, lastName, email, phone, city, state } = req.body;

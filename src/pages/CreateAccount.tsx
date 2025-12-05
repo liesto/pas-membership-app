@@ -95,21 +95,27 @@ const CreateAccount = () => {
         lastName: lastName,
       });
 
-      console.log("[CreateAccount] Clerk signup complete - status:", result.status, "sessionId:", result.createdSessionId);
+      console.log("[CreateAccount] Clerk signup complete:", {
+        status: result.status,
+        createdSessionId: result.createdSessionId,
+        createdUserId: result.createdUserId,
+        id: result.id,
+        allKeys: Object.keys(result)
+      });
 
-      // Check if we have a valid session before proceeding to Salesforce
-      const canProceed = result.status === "complete" ||
-                        (result.status === "missing_requirements" && result.createdSessionId);
+      // For Clerk signUp, the user ID is in result.id, not result.createdUserId
+      const userId = result.createdUserId || result.id;
 
-      if (!canProceed) {
-        console.log("Unexpected status:", result.status);
+      // Check if we have a valid user ID before proceeding to Salesforce
+      if (!userId) {
+        console.log("No user ID returned from Clerk - status:", result.status);
         setCreateAccountError("Account creation failed. Please try again.");
         setIsCreatingAccount(false);
         return;
       }
 
       // Store the user ID for potential rollback
-      clerkUserId = result.createdSessionId;
+      clerkUserId = userId;
 
       // Step 2: Set active session
       if (result.createdSessionId) {
