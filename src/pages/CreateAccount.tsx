@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useSignUp, useAuth, useUser } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,13 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import logo from "@/assets/pisgah-logo.png";
 import { createContact } from "@/services/salesforceApi";
-import { deleteUser as deleteClerkUser } from "@/services/clerkApi";
+import { createUser as createClerkUser, deleteUser as deleteClerkUser } from "@/services/clerkApi";
 import { validatePhoneNumber, getPhoneErrorMessage } from "@/utils/validation";
 
 const CreateAccount = () => {
   const navigate = useNavigate();
-  const { signUp, isLoaded, setActive } = useSignUp();
-  const { getToken } = useAuth();
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -73,12 +70,6 @@ const CreateAccount = () => {
       return;
     }
 
-    if (!isLoaded || !signUp) {
-      console.log("[CreateAccount] Clerk not loaded - isLoaded:", isLoaded, "signUp available:", !!signUp);
-      setCreateAccountError("Authentication is not ready. Please try again.");
-      return;
-    }
-
     setIsCreatingAccount(true);
     setCreateAccountError("");
     let clerkUserId: string | null = null;
@@ -86,56 +77,19 @@ const CreateAccount = () => {
     try {
       console.log("[CreateAccount] Starting account creation for:", { email, firstName, lastName });
 
-      // Step 1: Create the user in Clerk
-      console.log("[CreateAccount] Calling Clerk signUp.create()");
-      const result = await signUp.create({
-        emailAddress: email,
-        password: password,
-        firstName: firstName,
-        lastName: lastName,
+      // Step 1: Create the user in Clerk via backend API
+      console.log("[CreateAccount] Creating Clerk user via backend API...");
+      const clerkResult = await createClerkUser({
+        email,
+        firstName,
+        lastName,
+        password,
       });
 
-      console.log("[CreateAccount] Clerk signup complete:", {
-        status: result.status,
-        createdSessionId: result.createdSessionId,
-        createdUserId: result.createdUserId,
-        id: result.id,
-        allKeys: Object.keys(result)
-      });
+      clerkUserId = clerkResult.userId;
+      console.log("[CreateAccount] Clerk user created successfully:", clerkUserId);
 
-      // For Clerk signUp, the user ID is in result.id, not result.createdUserId
-      const userId = result.createdUserId || result.id;
-
-      // Check if we have a valid user ID before proceeding to Salesforce
-      if (!userId) {
-        console.log("No user ID returned from Clerk - status:", result.status);
-        setCreateAccountError("Account creation failed. Please try again.");
-        setIsCreatingAccount(false);
-        return;
-      }
-
-      // Store the user ID for potential rollback
-      clerkUserId = userId;
-
-      // Step 2: Set active session
-      if (result.createdSessionId) {
-        console.log("Setting active session");
-        await setActive?.({ session: result.createdSessionId });
-      }
-
-      // Step 3: Get the session token from Clerk for API calls
-      let sessionToken: string | null = null;
-      try {
-        const token = await getToken();
-        if (token) {
-          sessionToken = token;
-          console.log("Got Clerk session token");
-        }
-      } catch (tokenError) {
-        console.warn("Could not retrieve session token:", tokenError);
-      }
-
-      // Step 4: Create the contact in Salesforce
+      // Step 2: Create the contact in Salesforce (independent operation)
       console.log("[CreateAccount] Creating Salesforce contact...");
       const contactData = {
         firstName,
@@ -147,7 +101,7 @@ const CreateAccount = () => {
       };
 
       console.log("[CreateAccount] Calling createContact with:", contactData);
-      await createContact(contactData, sessionToken || undefined);
+      await createContact(contactData);
       console.log("[CreateAccount] Salesforce contact created successfully!");
 
       toast.success("Account created successfully!");
@@ -155,9 +109,9 @@ const CreateAccount = () => {
     } catch (err: any) {
       console.error("[CreateAccount] Account creation failed:", err?.message || err);
 
-      // Handle Salesforce failure - rollback Clerk user
+      // Attempt rollback of Clerk user if it was created
       if (clerkUserId) {
-        console.log("Attempting to rollback Clerk user due to Salesforce failure");
+        console.log("Attempting to rollback Clerk user:", clerkUserId);
         try {
           await deleteClerkUser(clerkUserId);
           console.log("Clerk user deleted successfully");
@@ -171,8 +125,8 @@ const CreateAccount = () => {
         }
       }
 
-      // Show error message for Salesforce failure
-      let errorMessage = "Failed to create your profile. Please try again.";
+      // Show error message
+      let errorMessage = "Failed to create your account. Please try again.";
 
       if (err?.message) {
         errorMessage = err.message;
