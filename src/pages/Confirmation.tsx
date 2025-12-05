@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,21 +24,62 @@ const benefits = [
   "SORBA Fat Tire Times newsletter",
 ];
 
+interface ConfirmationState {
+  contact: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    accountId?: string;
+    clerkUserId?: string | null;
+  };
+  opportunity: {
+    id: string;
+    name: string;
+    amount: number;
+    membershipStartDate: string;
+    membershipEndDate: string;
+  };
+  formData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    membershipLevel: string;
+    paymentFrequency: string;
+  };
+}
+
 const Confirmation = () => {
-  const [searchParams] = useSearchParams();
-  const level = (searchParams.get("level") || "bronze") as keyof typeof membershipLevels;
-  const frequency = searchParams.get("frequency") || "annual";
-  
+  const location = useLocation();
+  const state = location.state as ConfirmationState | null;
+
+  // Fallback to default values if no state is provided
+  const level = (state?.formData?.membershipLevel || "bronze") as keyof typeof membershipLevels;
+  const frequency = state?.formData?.paymentFrequency || "annual";
+
   const membership = membershipLevels[level];
-  const price = frequency === "annual" ? membership.annualPrice : membership.monthlyPrice;
-  
-  const today = new Date();
-  const expirationDate = new Date(today);
-  if (frequency === "annual") {
-    expirationDate.setFullYear(expirationDate.getFullYear() + 1);
-  } else {
-    expirationDate.setMonth(expirationDate.getMonth() + 1);
-  }
+  const price = state?.opportunity?.amount || (frequency === "annual" ? membership.annualPrice : membership.monthlyPrice);
+
+  // Use actual dates from Salesforce or fallback to calculated dates
+  const startDate = state?.opportunity?.membershipStartDate
+    ? new Date(state.opportunity.membershipStartDate)
+    : new Date();
+  const expirationDate = state?.opportunity?.membershipEndDate
+    ? new Date(state.opportunity.membershipEndDate)
+    : (() => {
+        const date = new Date();
+        if (frequency === "annual") {
+          date.setFullYear(date.getFullYear() + 1);
+        } else {
+          date.setMonth(date.getMonth() + 1);
+        }
+        return date;
+      })();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -63,28 +104,62 @@ const Confirmation = () => {
             <CardTitle className="text-2xl">Membership Receipt</CardTitle>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
+            {/* User Information Section */}
+            {state?.formData && (
+              <div className="pb-4 border-b space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Name</span>
+                  <span className="font-semibold">
+                    {state.formData.firstName} {state.formData.lastName}
+                  </span>
+                </div>
+                {state.formData.address && (
+                  <div className="flex justify-between items-start">
+                    <span className="text-muted-foreground">Address</span>
+                    <div className="text-right font-semibold">
+                      <div>{state.formData.address}</div>
+                      <div>
+                        {state.formData.city && `${state.formData.city}, `}
+                        {state.formData.state} {state.formData.zipCode}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {state.formData.phone && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Phone</span>
+                    <span className="font-semibold">{state.formData.phone}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="font-semibold">{state.formData.email}</span>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-between items-center pb-4 border-b">
               <span className="text-muted-foreground">Transaction Date</span>
-              <span className="font-semibold">{today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+              <span className="font-semibold">{startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
             </div>
-            
+
             <div className="flex justify-between items-center pb-4 border-b">
               <span className="text-muted-foreground">Membership Level</span>
               <Badge variant="outline" className={`text-base px-4 py-1 ${membership.color} border-current`}>
                 {membership.name}
               </Badge>
             </div>
-            
+
             <div className="flex justify-between items-center pb-4 border-b">
               <span className="text-muted-foreground">Payment Frequency</span>
               <span className="font-semibold capitalize">{frequency}</span>
             </div>
-            
+
             <div className="flex justify-between items-center pb-4 border-b">
               <span className="text-muted-foreground">Amount Paid</span>
-              <span className="font-semibold text-primary text-xl">${price}{frequency === "monthly" ? "/mo" : "/yr"}</span>
+              <span className="font-semibold text-primary text-xl">${price}</span>
             </div>
-            
+
             <div className="flex justify-between items-center pt-2">
               <span className="text-muted-foreground">
                 {frequency === "annual" ? "Membership Expires" : "Next Payment Due"}

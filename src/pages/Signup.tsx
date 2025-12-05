@@ -157,9 +157,26 @@ const Signup = () => {
         description: `Welcome to Pisgah Area SORBA, ${data.firstName}!`,
       });
 
-      // Redirect to confirmation page
+      // Redirect to confirmation page with membership data
       console.log('[Signup] Redirecting to confirmation page');
-      navigate('/confirmation');
+      navigate('/confirmation', {
+        state: {
+          contact: result.contact,
+          opportunity: result.opportunity,
+          formData: {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            phone: data.phone,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            zipCode: data.zipCode,
+            membershipLevel: data.membershipLevel,
+            paymentFrequency: data.paymentFrequency,
+          }
+        }
+      });
 
     } catch (error) {
       console.error('[Signup] Submission failed:', {
