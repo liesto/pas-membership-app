@@ -6,10 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Mountain,
-  Pickaxe,
-  Handshake,
-  HardHat,
-  Axe,
   Heart,
   Users,
   Calendar,
@@ -18,31 +14,40 @@ import {
   Loader2
 } from "lucide-react";
 import logo from "@/assets/pisgah-logo.png";
+import memberBadge from "@/assets/badges/member.png";
+import trailBuildersBadge from "@/assets/badges/trail-builders-club.png";
+import industryPartnerBadge from "@/assets/badges/industry-partner.png";
+import trailCrewLeaderBadge from "@/assets/badges/trail-crew-leader.png";
+import sawyerBadge from "@/assets/badges/sawyer.png";
 import { getUserAccountData, type UserAccountData } from "@/services/salesforceApi";
 import { toast } from "sonner";
 
 interface BadgeDisplayProps {
   name: string;
-  icon: React.ReactNode;
+  imageSrc: string;
   earned: boolean;
   description: string;
 }
 
-const BadgeDisplay = ({ name, icon, earned, description }: BadgeDisplayProps) => (
-  <div 
+const BadgeDisplay = ({ name, imageSrc, earned, description }: BadgeDisplayProps) => (
+  <div
     className={`flex flex-col items-center p-4 rounded-lg transition-all ${
-      earned 
-        ? "bg-primary text-primary-foreground" 
-        : "bg-muted text-muted-foreground opacity-50"
+      earned
+        ? "opacity-100"
+        : "opacity-30 grayscale"
     }`}
   >
-    <div className={`w-16 h-16 rounded-lg flex items-center justify-center mb-2 ${
-      earned ? "bg-accent text-accent-foreground" : "bg-border"
-    }`}>
-      {icon}
+    <div className="w-full aspect-square mb-2 flex items-center justify-center">
+      <img
+        src={imageSrc}
+        alt={name}
+        className="w-full h-full object-contain"
+      />
     </div>
-    <span className="font-bold text-sm text-center">{name}</span>
-    <span className={`text-xs text-center mt-1 ${earned ? "text-primary-foreground/80" : ""}`}>
+    <span className={`font-bold text-sm text-center ${earned ? "text-foreground" : "text-muted-foreground"}`}>
+      {name}
+    </span>
+    <span className={`text-xs text-center mt-1 ${earned ? "text-muted-foreground" : "text-muted-foreground/60"}`}>
       {description}
     </span>
     {earned && (
@@ -297,31 +302,31 @@ const MyAccount = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               <BadgeDisplay
                 name="Member"
-                icon={<Mountain className="w-8 h-8" />}
+                imageSrc={memberBadge}
                 earned={userData.Membership_Status__c === "Current"}
                 description="Active PAS member"
               />
               <BadgeDisplay
                 name="Trail Builders Club"
-                icon={<Pickaxe className="w-8 h-8" />}
+                imageSrc={trailBuildersBadge}
                 earned={userData.Trail_Builders_Club__c === true}
                 description="10+ volunteer hours"
               />
               <BadgeDisplay
                 name="Industry Partner"
-                icon={<Handshake className="w-8 h-8" />}
+                imageSrc={industryPartnerBadge}
                 earned={userData.Contact_is_Industry_Partner__c === true}
                 description="Business supporter"
               />
               <BadgeDisplay
                 name="Trail Crew Leader"
-                icon={<HardHat className="w-8 h-8" />}
+                imageSrc={trailCrewLeaderBadge}
                 earned={userData.Trail_Crew_Leader__c === true}
                 description="Certified TCL"
               />
               <BadgeDisplay
                 name="Sawyer"
-                icon={<Axe className="w-8 h-8" />}
+                imageSrc={sawyerBadge}
                 earned={userData.Sawyer__c === true}
                 description="Certified sawyer"
               />
