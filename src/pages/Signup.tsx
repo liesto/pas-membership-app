@@ -55,6 +55,7 @@ type EmailStatus = "idle" | "checking" | "available" | "taken";
 const Signup = () => {
   const [searchParams] = useSearchParams();
   const initialLevel = (searchParams.get("level") || "silver") as keyof typeof membershipLevels;
+  const initialFrequency = (searchParams.get("frequency") || "annual") as "monthly" | "annual";
 
   const [emailStatus, setEmailStatus] = useState<EmailStatus>("idle");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,7 +75,7 @@ const Signup = () => {
       state: "",
       zipCode: "",
       emailOptIn: true,
-      paymentFrequency: "annual",
+      paymentFrequency: initialFrequency,
     },
   });
 

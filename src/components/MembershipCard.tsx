@@ -69,7 +69,7 @@ export const MembershipCard = ({ tier, price, isAnnual, benefits, featured }: Me
         </div>
       </CardContent>
       <CardFooter>
-        <Link to={`/signup?level=${tier.toLowerCase()}`} className="w-full">
+        <Link to={`/signup?level=${tier.toLowerCase()}&frequency=${isAnnual ? 'annual' : 'monthly'}`} className="w-full">
           <Button
             variant={featured ? "accent" : "default"}
             size="lg"
