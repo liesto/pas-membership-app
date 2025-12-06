@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import logo from "@/assets/pisgah-logo.png";
 import { createMembership, type CreateMembershipRequest } from "@/services/salesforceApi";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 
 const signupSchema = z.object({
   membershipLevel: z.enum(["bronze", "silver", "gold"]),
@@ -318,7 +319,7 @@ const Signup = () => {
                           <FormItem>
                             <FormLabel>First Name</FormLabel>
                             <FormControl>
-                              <Input placeholder="John" {...field} />
+                              <Input placeholder="" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -331,7 +332,7 @@ const Signup = () => {
                           <FormItem>
                             <FormLabel>Last Name</FormLabel>
                             <FormControl>
-                              <Input placeholder="Doe" {...field} />
+                              <Input placeholder="" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -347,7 +348,7 @@ const Signup = () => {
                           <FormLabel>Email</FormLabel>
                           <div className="relative">
                             <FormControl>
-                              <Input type="email" placeholder="john@example.com" {...field} className="pr-10" />
+                              <Input type="email" placeholder="" {...field} className="pr-10" />
                             </FormControl>
                             {emailStatus !== "idle" && (
                               <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -381,7 +382,25 @@ const Signup = () => {
                         <FormItem>
                           <FormLabel>Phone</FormLabel>
                           <FormControl>
-                            <Input type="tel" placeholder="(555) 123-4567" {...field} />
+                            <Input
+                              type="tel"
+                              placeholder=""
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, '');
+                                let formattedValue = '';
+                                if (value.length > 0) {
+                                  formattedValue = '(' + value.substring(0, 3);
+                                }
+                                if (value.length >= 4) {
+                                  formattedValue += ')' + value.substring(3, 6);
+                                }
+                                if (value.length >= 7) {
+                                  formattedValue += '-' + value.substring(6, 10);
+                                }
+                                field.onChange(formattedValue);
+                              }}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -395,7 +414,38 @@ const Signup = () => {
                         <FormItem>
                           <FormLabel>Street Address</FormLabel>
                           <FormControl>
-                            <Input placeholder="123 Main St" {...field} />
+                            <AddressAutocomplete
+                              value={field.value || ""}
+                              onChange={field.onChange}
+                              onAddressSelect={(address) => {
+                                console.log('[Signup] onAddressSelect called with:', address);
+
+                                // Update all fields
+                                if (address.city) {
+                                  form.setValue("city", address.city, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+                                  console.log('[Signup] Set city to:', address.city);
+                                }
+                                if (address.state) {
+                                  form.setValue("state", address.state, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+                                  console.log('[Signup] Set state to:', address.state);
+                                }
+                                if (address.zipCode) {
+                                  form.setValue("zipCode", address.zipCode, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+                                  console.log('[Signup] Set zipCode to:', address.zipCode);
+                                }
+
+                                // Force re-render by triggering validation
+                                setTimeout(() => {
+                                  form.trigger(["city", "state", "zipCode"]);
+                                  console.log('[Signup] After trigger, form values:', {
+                                    city: form.getValues("city"),
+                                    state: form.getValues("state"),
+                                    zipCode: form.getValues("zipCode")
+                                  });
+                                }, 100);
+                              }}
+                              placeholder=""
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -410,7 +460,7 @@ const Signup = () => {
                           <FormItem>
                             <FormLabel>City</FormLabel>
                             <FormControl>
-                              <Input placeholder="Asheville" {...field} />
+                              <Input placeholder="" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -447,7 +497,7 @@ const Signup = () => {
                           <FormItem>
                             <FormLabel>ZIP Code</FormLabel>
                             <FormControl>
-                              <Input placeholder="28801" {...field} />
+                              <Input placeholder="" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
