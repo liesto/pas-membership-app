@@ -11,6 +11,8 @@ export type { Request, Response, NextFunction };
 
 /**
  * Middleware to verify Clerk token from Authorization header
+ * Token is optional - if present, it will be validated and attached to req.clerkToken
+ * If not present, request continues without auth (use requireAuth middleware to enforce)
  */
 export async function verifyClerkToken(
   req: AuthenticatedRequest,
@@ -21,10 +23,9 @@ export async function verifyClerkToken(
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
 
+    // If no auth header, continue without setting token (not an error for optional auth)
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        error: 'Missing or invalid Authorization header',
-      });
+      return next();
     }
 
     const token = authHeader.substring(7); // Remove "Bearer " prefix

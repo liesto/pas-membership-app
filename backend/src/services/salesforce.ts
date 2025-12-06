@@ -143,7 +143,7 @@ export async function getContactByClerkUserId(clerkUserId: string): Promise<any 
   console.log('Querying Contact by Clerk User ID:', clerkUserId);
 
   try {
-    const query = `SELECT Id, FirstName, LastName, Email, Phone, MailingStreet, MailingCity, MailingState, MailingPostalCode, Membership_Status__c, npo02__MembershipEndDate__c FROM Contact WHERE Clerk_User_ID__c='${clerkUserId}' LIMIT 1`;
+    const query = `SELECT Id, FirstName, LastName, Email, Phone, MailingStreet, MailingCity, MailingState, MailingPostalCode, Membership_Status__c, npo02__MembershipEndDate__c, npo02__OppAmountThisYear__c, npo02__OppAmountLastYear__c, Trailwork_Hours_This_Year__c, Trailwork_Hours_Last_Year__c, Trail_Builders_Club__c, Contact_is_Industry_Partner__c, Trail_Crew_Leader__c, Sawyer__c FROM Contact WHERE Clerk_User_ID__c='${clerkUserId}' LIMIT 1`;
     const result = await callSalesforceApi(
       'GET',
       `/query?q=${encodeURIComponent(query)}`

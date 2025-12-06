@@ -104,6 +104,14 @@ export interface UserAccountData {
   MailingPostalCode?: string;
   Membership_Status__c?: string | null;
   npo02__MembershipEndDate__c?: string | null;
+  npo02__OppAmountThisYear__c?: number | null;
+  npo02__OppAmountLastYear__c?: number | null;
+  Trailwork_Hours_This_Year__c?: number | null;
+  Trailwork_Hours_Last_Year__c?: number | null;
+  Trail_Builders_Club__c?: boolean;
+  Contact_is_Industry_Partner__c?: boolean;
+  Trail_Crew_Leader__c?: boolean;
+  Sawyer__c?: boolean;
 }
 
 export async function getUserAccountData(

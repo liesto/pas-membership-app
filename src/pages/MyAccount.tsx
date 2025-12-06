@@ -184,7 +184,15 @@ const MyAccount = () => {
                 {userData.Phone && (
                   <div>
                     <span className="text-sm text-muted-foreground">Phone</span>
-                    <p className="text-base text-foreground">{userData.Phone}</p>
+                    <p className="text-base text-foreground">
+                      {(() => {
+                        const cleaned = userData.Phone.replace(/\D/g, '');
+                        if (cleaned.length === 10) {
+                          return `(${cleaned.substring(0, 3)})${cleaned.substring(3, 6)}-${cleaned.substring(6, 10)}`;
+                        }
+                        return userData.Phone;
+                      })()}
+                    </p>
                   </div>
                 )}
                 {userData.Email && (
@@ -234,11 +242,90 @@ const MyAccount = () => {
               </div>
             </Card>
 
-            {/* TODO: Add Donations Card with real data */}
-            {/* TODO: Add Volunteer Hours Card with real data */}
+            {/* Donations Card */}
+            <Card className="p-6 shadow-card">
+              <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+                <DollarSign className="w-5 h-5" />
+                Donations
+              </h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-secondary rounded-lg p-4 text-center">
+                  <span className="text-sm text-muted-foreground block">This Year</span>
+                  <p className="text-2xl font-bold text-primary">
+                    ${userData.npo02__OppAmountThisYear__c || 0}
+                  </p>
+                </div>
+                <div className="bg-secondary rounded-lg p-4 text-center">
+                  <span className="text-sm text-muted-foreground block">Last Year</span>
+                  <p className="text-2xl font-bold text-foreground">
+                    ${userData.npo02__OppAmountLastYear__c || 0}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Volunteer Hours Card */}
+            <Card className="p-6 shadow-card">
+              <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Volunteer Hours
+              </h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-secondary rounded-lg p-4 text-center">
+                  <span className="text-sm text-muted-foreground block">This Year</span>
+                  <p className="text-2xl font-bold text-primary">
+                    {userData.Trailwork_Hours_This_Year__c || 0}
+                  </p>
+                </div>
+                <div className="bg-secondary rounded-lg p-4 text-center">
+                  <span className="text-sm text-muted-foreground block">Last Year</span>
+                  <p className="text-2xl font-bold text-foreground">
+                    {userData.Trailwork_Hours_Last_Year__c || 0}
+                  </p>
+                </div>
+              </div>
+            </Card>
           </div>
 
-          {/* TODO: Add Badges Section with real data */}
+          {/* Badges Section */}
+          <Card className="p-6 shadow-card">
+            <h2 className="text-xl font-bold text-primary mb-6 flex items-center gap-2">
+              <Mountain className="w-5 h-5" />
+              Your Badges
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+              <BadgeDisplay
+                name="Member"
+                icon={<Mountain className="w-8 h-8" />}
+                earned={userData.Membership_Status__c === "Current"}
+                description="Active PAS member"
+              />
+              <BadgeDisplay
+                name="Trail Builders Club"
+                icon={<Pickaxe className="w-8 h-8" />}
+                earned={userData.Trail_Builders_Club__c === true}
+                description="10+ volunteer hours"
+              />
+              <BadgeDisplay
+                name="Industry Partner"
+                icon={<Handshake className="w-8 h-8" />}
+                earned={userData.Contact_is_Industry_Partner__c === true}
+                description="Business supporter"
+              />
+              <BadgeDisplay
+                name="Trail Crew Leader"
+                icon={<HardHat className="w-8 h-8" />}
+                earned={userData.Trail_Crew_Leader__c === true}
+                description="Certified TCL"
+              />
+              <BadgeDisplay
+                name="Sawyer"
+                icon={<Axe className="w-8 h-8" />}
+                earned={userData.Sawyer__c === true}
+                description="Certified sawyer"
+              />
+            </div>
+          </Card>
 
           {/* Call to Action Buttons */}
           <Card className="p-6 shadow-card bg-gradient-to-r from-primary/5 to-accent/5">
