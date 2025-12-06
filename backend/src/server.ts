@@ -27,6 +27,7 @@ import cookieParser from 'cookie-parser';
 import { verifyClerkToken } from './middleware/auth.ts';
 import salesforceRoutes from './routes/salesforce.ts';
 import clerkRoutes from './routes/clerk.ts';
+import stripeRoutes from './routes/stripe.ts';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,6 +70,9 @@ app.use('/api/salesforce', salesforceRoutes);
 
 // Clerk endpoints (public routes for signup)
 app.use('/api/clerk', clerkRoutes);
+
+// Stripe endpoints (for payment processing)
+app.use('/api/stripe', stripeRoutes);
 
 // 404 handler
 app.use((req, res) => {

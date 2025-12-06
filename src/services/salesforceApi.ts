@@ -29,6 +29,7 @@ export interface ApiError {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const SALESFORCE_API = `${API_BASE_URL}/salesforce`;
+const STRIPE_API = `${API_BASE_URL}/stripe`;
 
 /**
  * Create a Salesforce Contact record
@@ -243,5 +244,59 @@ export async function createMembership(
       throw error;
     }
     throw new Error('An unexpected error occurred while creating membership');
+  }
+}
+
+/**
+ * Stripe Payment Intent interfaces and function
+ */
+
+export interface CreatePaymentIntentRequest {
+  amount: number;
+  email: string;
+  metadata?: Record<string, string>;
+}
+
+export interface CreatePaymentIntentResponse {
+  clientSecret: string;
+  paymentIntentId: string;
+}
+
+/**
+ * Create a Stripe Payment Intent
+ * @param paymentData - Payment information
+ * @returns Promise with client secret and payment intent ID
+ * @throws Error if creation fails
+ */
+export async function createPaymentIntent(
+  paymentData: CreatePaymentIntentRequest
+): Promise<CreatePaymentIntentResponse> {
+  console.log('[StripeAPI] Creating payment intent:', {
+    amount: paymentData.amount,
+    email: paymentData.email,
+    timestamp: new Date().toISOString(),
+  });
+
+  try {
+    const response = await fetch(`${STRIPE_API}/create-payment-intent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(paymentData),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as ApiError;
+      throw new Error(errorData.error || `Failed to create payment intent: ${response.statusText}`);
+    }
+
+    return await response.json() as CreatePaymentIntentResponse;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unexpected error occurred while creating payment intent');
   }
 }

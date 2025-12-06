@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2, CreditCard } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,8 +14,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import logo from "@/assets/pisgah-logo.png";
-import { createMembership, type CreateMembershipRequest } from "@/services/salesforceApi";
+import { createMembership, type CreateMembershipRequest, createPaymentIntent } from "@/services/salesforceApi";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
+import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
+
+// Initialize Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const signupSchema = z.object({
   membershipLevel: z.enum(["bronze", "silver", "gold"]),
@@ -29,6 +34,8 @@ const signupSchema = z.object({
   zipCode: z.string().regex(/^\d{5}$/, "ZIP code must be 5 digits").optional().or(z.literal('')),
   emailOptIn: z.boolean().default(true),
   paymentFrequency: z.enum(["monthly", "annual"]),
+  // Payment fields - validated by Stripe Elements
+  cardholderName: z.string().min(2, "Cardholder name is required"),
 });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
@@ -52,7 +59,7 @@ const usStates = [
 
 type EmailStatus = "idle" | "checking" | "available" | "taken";
 
-const Signup = () => {
+const SignupForm = () => {
   const [searchParams] = useSearchParams();
   const initialLevel = (searchParams.get("level") || "silver") as keyof typeof membershipLevels;
   const initialFrequency = (searchParams.get("frequency") || "annual") as "monthly" | "annual";
@@ -61,6 +68,8 @@ const Signup = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStage, setSubmissionStage] = useState<string>('');
   const navigate = useNavigate();
+  const stripe = useStripe();
+  const elements = useElements();
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -76,6 +85,7 @@ const Signup = () => {
       zipCode: "",
       emailOptIn: true,
       paymentFrequency: initialFrequency,
+      cardholderName: "",
     },
   });
 
@@ -108,6 +118,11 @@ const Signup = () => {
       return;
     }
 
+    if (!stripe || !elements) {
+      toast.error("Stripe is not initialized. Please refresh the page and try again.");
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmissionStage('Preparing signup...');
 
@@ -120,11 +135,65 @@ const Signup = () => {
         timestamp: new Date().toISOString()
       });
 
-      // Update stage
-      setSubmissionStage('Creating contact...');
-      console.log('[Signup] Stage: Creating contact');
+      // STEP 1: Create Payment Intent
+      setSubmissionStage('Processing payment...');
+      console.log('[Signup] Stage: Creating payment intent');
 
-      // Prepare membership data
+      const paymentIntentData = await createPaymentIntent({
+        amount: price,
+        email: data.email,
+        metadata: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          membershipLevel: data.membershipLevel,
+          paymentFrequency: data.paymentFrequency,
+        },
+      });
+
+      console.log('[Signup] Payment intent created:', paymentIntentData.paymentIntentId);
+
+      // STEP 2: Confirm Payment with Stripe Elements
+      setSubmissionStage('Confirming payment...');
+      const cardNumberElement = elements.getElement(CardNumberElement);
+
+      if (!cardNumberElement) {
+        throw new Error('Card number element not found');
+      }
+
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
+        paymentIntentData.clientSecret,
+        {
+          payment_method: {
+            card: cardNumberElement,
+            billing_details: {
+              name: data.cardholderName,
+              email: data.email,
+              address: {
+                line1: data.address,
+                city: data.city,
+                state: data.state,
+                postal_code: data.zipCode,
+              },
+            },
+          },
+        }
+      );
+
+      if (stripeError) {
+        console.error('[Signup] Stripe payment error:', stripeError);
+        throw new Error(stripeError.message || 'Payment failed');
+      }
+
+      if (paymentIntent?.status !== 'succeeded') {
+        throw new Error('Payment was not successful');
+      }
+
+      console.log('[Signup] Payment succeeded:', paymentIntent.id);
+
+      // STEP 3: Create Salesforce Contact and Membership (only after successful payment)
+      setSubmissionStage('Creating membership...');
+      console.log('[Signup] Stage: Creating Salesforce membership');
+
       const membershipData: CreateMembershipRequest = {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -139,23 +208,18 @@ const Signup = () => {
         membershipTerm: data.paymentFrequency === 'annual' ? 'annual' : 'monthly',
       };
 
-      // Call Salesforce API
       const result = await createMembership(membershipData);
 
-      console.log('[Signup] Contact created:', result.contact.id);
-      setSubmissionStage('Creating membership...');
-      console.log('[Signup] Stage: Creating membership opportunity');
-
-      // Log success
       console.log('[Signup] Membership created successfully:', {
         contactId: result.contact.id,
         opportunityId: result.opportunity.id,
         amount: result.opportunity.amount,
+        paymentIntentId: paymentIntent.id,
         timestamp: new Date().toISOString()
       });
 
       // Show success toast
-      toast.success('Membership Created!', {
+      toast.success('Payment Successful!', {
         description: `Welcome to Pisgah Area SORBA, ${data.firstName}!`,
       });
 
@@ -165,6 +229,7 @@ const Signup = () => {
         state: {
           contact: result.contact,
           opportunity: result.opportunity,
+          paymentIntentId: paymentIntent.id,
           formData: {
             firstName: data.firstName,
             lastName: data.lastName,
@@ -507,6 +572,89 @@ const Signup = () => {
                     </div>
                   </div>
 
+                  {/* Payment Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <CreditCard className="w-5 h-5" />
+                      Payment Information
+                    </h3>
+
+                    <FormField
+                      control={form.control}
+                      name="cardholderName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cardholder Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="John Doe" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Card Number</Label>
+                        <div className="mt-2 p-3 border rounded-md bg-background">
+                          <CardNumberElement
+                            options={{
+                              style: {
+                                base: {
+                                  fontSize: '16px',
+                                  color: 'hsl(var(--foreground))',
+                                  '::placeholder': {
+                                    color: 'hsl(var(--muted-foreground))',
+                                  },
+                                },
+                              },
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Expiry Date</Label>
+                          <div className="mt-2 p-3 border rounded-md bg-background">
+                            <CardExpiryElement
+                              options={{
+                                style: {
+                                  base: {
+                                    fontSize: '16px',
+                                    color: 'hsl(var(--foreground))',
+                                    '::placeholder': {
+                                      color: 'hsl(var(--muted-foreground))',
+                                    },
+                                  },
+                                },
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label>CVV</Label>
+                          <div className="mt-2 p-3 border rounded-md bg-background">
+                            <CardCvcElement
+                              options={{
+                                style: {
+                                  base: {
+                                    fontSize: '16px',
+                                    color: 'hsl(var(--foreground))',
+                                    '::placeholder': {
+                                      color: 'hsl(var(--muted-foreground))',
+                                    },
+                                  },
+                                },
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Email Opt-in */}
                   <FormField
                     control={form.control}
@@ -560,6 +708,14 @@ const Signup = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const Signup = () => {
+  return (
+    <Elements stripe={stripePromise}>
+      <SignupForm />
+    </Elements>
   );
 };
 
