@@ -82,6 +82,7 @@ const MyAccount = () => {
       }
 
       const data = await getUserAccountData(clerkUser.id, token);
+      console.log('[MyAccount] User data received:', data);
       setUserData(data);
     } catch (error: any) {
       console.error('Failed to fetch user data:', error);
