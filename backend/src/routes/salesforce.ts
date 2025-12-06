@@ -5,6 +5,7 @@ import {
   createContact,
   getContactByEmail,
   getContactById,
+  getContactByClerkUserId,
   createOpportunity,
   getOpportunitiesByContactId,
   createMembershipContact,
@@ -100,6 +101,35 @@ router.get(
       res.json(contact);
     } catch (error: any) {
       console.error('Query contact error:', error.message);
+      res.status(500).json({
+        error: error.message || 'Failed to query contact',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/salesforce/contacts/clerk/:clerkUserId
+ * Get a Contact by Clerk User ID
+ */
+router.get(
+  '/contacts/clerk/:clerkUserId',
+  requireAuth,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const { clerkUserId } = req.params;
+
+      const contact = await getContactByClerkUserId(clerkUserId);
+
+      if (!contact) {
+        return res.status(404).json({
+          error: 'Contact not found',
+        });
+      }
+
+      res.json(contact);
+    } catch (error: any) {
+      console.error('Query contact by Clerk User ID error:', error.message);
       res.status(500).json({
         error: error.message || 'Failed to query contact',
       });

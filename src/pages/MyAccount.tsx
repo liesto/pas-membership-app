@@ -1,39 +1,25 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Mountain, 
-  Pickaxe, 
-  Handshake, 
-  HardHat, 
+import {
+  Mountain,
+  Pickaxe,
+  Handshake,
+  HardHat,
   Axe,
   Heart,
   Users,
   Calendar,
   DollarSign,
-  Clock
+  Clock,
+  Loader2
 } from "lucide-react";
 import logo from "@/assets/pisgah-logo.png";
-
-// Mock user data - in a real app this would come from auth/database
-const mockUserData = {
-  firstName: "John",
-  lastName: "Doe",
-  membershipStatus: "current" as "none" | "current" | "expired",
-  membershipExpirationDate: "2025-12-31",
-  donationsThisYear: 150,
-  donationsLastYear: 100,
-  volunteerHoursThisYear: 24,
-  volunteerHoursLastYear: 18,
-  badges: {
-    member: true,
-    trailBuildersClub: true,
-    industryPartner: false,
-    trailCrewLeader: true,
-    sawyer: false,
-  },
-};
+import { getUserAccountData, type UserAccountData } from "@/services/salesforceApi";
+import { toast } from "sonner";
 
 interface BadgeDisplayProps {
   name: string;
@@ -68,53 +54,80 @@ const BadgeDisplay = ({ name, icon, earned, description }: BadgeDisplayProps) =>
 );
 
 const MyAccount = () => {
-  const user = mockUserData;
+  const { user: clerkUser, isLoaded: isUserLoaded } = useUser();
+  const { getToken } = useAuth();
+  const navigate = useNavigate();
+  const [userData, setUserData] = useState<UserAccountData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getMembershipStatusDisplay = () => {
-    switch (user.membershipStatus) {
-      case "current":
-        return { label: "Current Member", color: "bg-green-500" };
-      case "expired":
-        return { label: "Expired Member", color: "bg-destructive" };
-      default:
-        return { label: "Not a Member", color: "bg-muted-foreground" };
+  useEffect(() => {
+    // Redirect to login if not authenticated
+    if (isUserLoaded && !clerkUser) {
+      navigate('/login');
+      return;
+    }
+
+    // Fetch user data from Salesforce once Clerk user is loaded
+    if (isUserLoaded && clerkUser) {
+      fetchUserData();
+    }
+  }, [isUserLoaded, clerkUser, navigate]);
+
+  const fetchUserData = async () => {
+    try {
+      setIsLoading(true);
+      const token = await getToken();
+      if (!token || !clerkUser?.id) {
+        throw new Error('Authentication token or user ID not available');
+      }
+
+      const data = await getUserAccountData(clerkUser.id, token);
+      setUserData(data);
+    } catch (error: any) {
+      console.error('Failed to fetch user data:', error);
+      toast.error('Failed to load your account information');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const statusDisplay = getMembershipStatusDisplay();
+  const getMembershipStatusDisplay = () => {
+    const status = userData?.Membership_Status__c;
 
-  const badges = [
-    {
-      name: "Member",
-      icon: <Mountain className="w-8 h-8" />,
-      earned: user.badges.member,
-      description: "Active PAS member",
-    },
-    {
-      name: "Trail Builders Club",
-      icon: <Pickaxe className="w-8 h-8" />,
-      earned: user.badges.trailBuildersClub,
-      description: "10+ volunteer hours",
-    },
-    {
-      name: "Industry Partner",
-      icon: <Handshake className="w-8 h-8" />,
-      earned: user.badges.industryPartner,
-      description: "Business supporter",
-    },
-    {
-      name: "Trail Crew Leader",
-      icon: <HardHat className="w-8 h-8" />,
-      earned: user.badges.trailCrewLeader,
-      description: "Certified TCL",
-    },
-    {
-      name: "Sawyer",
-      icon: <Axe className="w-8 h-8" />,
-      earned: user.badges.sawyer,
-      description: "Certified sawyer",
-    },
-  ];
+    if (status === "Current") {
+      return { label: "Current Member", color: "bg-green-500" };
+    } else if (status === "Expired" || status === "Grace Period") {
+      return { label: "Expired Member", color: "bg-destructive" };
+    } else {
+      return { label: "Not a Member", color: "bg-muted-foreground" };
+    }
+  };
+
+  // Show loading state
+  if (!isUserLoaded || isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-lg text-muted-foreground">Loading your account...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If no user data, show error
+  if (!userData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg text-muted-foreground">Unable to load account information</p>
+          <Button onClick={() => navigate('/')} className="mt-4">Return Home</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const statusDisplay = getMembershipStatusDisplay();
 
   return (
     <div className="min-h-screen bg-background">
@@ -132,7 +145,7 @@ const MyAccount = () => {
           {/* Welcome Header */}
           <div className="text-center">
             <h1 className="text-4xl font-bold text-primary mb-2">
-              Welcome, {user.firstName}!
+              Welcome, {userData.FirstName}!
             </h1>
             <p className="text-lg text-muted-foreground">
               Manage your Pisgah Area SORBA account
@@ -151,9 +164,35 @@ const MyAccount = () => {
                 <div>
                   <span className="text-sm text-muted-foreground">Name</span>
                   <p className="text-lg font-semibold text-foreground">
-                    {user.firstName} {user.lastName}
+                    {userData.FirstName} {userData.LastName}
                   </p>
                 </div>
+                {userData.MailingStreet && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">Address</span>
+                    <p className="text-base text-foreground">
+                      {userData.MailingStreet}
+                      {userData.MailingCity && (
+                        <>
+                          <br />
+                          {userData.MailingCity}, {userData.MailingState} {userData.MailingPostalCode}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
+                {userData.Phone && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">Phone</span>
+                    <p className="text-base text-foreground">{userData.Phone}</p>
+                  </div>
+                )}
+                {userData.Email && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">Email</span>
+                    <p className="text-base text-foreground">{userData.Email}</p>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -170,11 +209,11 @@ const MyAccount = () => {
                     {statusDisplay.label}
                   </span>
                 </div>
-                {user.membershipStatus === "current" && (
+                {userData.Membership_Status__c === "Current" && userData.npo02__MembershipEndDate__c && (
                   <div>
                     <span className="text-sm text-muted-foreground">Expires</span>
                     <p className="text-base font-medium text-foreground">
-                      {new Date(user.membershipExpirationDate).toLocaleDateString("en-US", {
+                      {new Date(userData.npo02__MembershipEndDate__c).toLocaleDateString("en-US", {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
@@ -182,72 +221,24 @@ const MyAccount = () => {
                     </p>
                   </div>
                 )}
+                {(userData.Membership_Status__c === "Expired" || userData.Membership_Status__c === "Grace Period") && (
+                  <Button variant="accent" size="lg" className="w-full mt-4" asChild>
+                    <Link to="/signup">Renew Now</Link>
+                  </Button>
+                )}
+                {!userData.Membership_Status__c && (
+                  <Button variant="hero" size="lg" className="w-full mt-4" asChild>
+                    <Link to="/signup">Join Today</Link>
+                  </Button>
+                )}
               </div>
             </Card>
 
-            {/* Donations Card */}
-            <Card className="p-6 shadow-card">
-              <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Donations
-              </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-secondary rounded-lg p-4 text-center">
-                  <span className="text-sm text-muted-foreground block">This Year</span>
-                  <p className="text-2xl font-bold text-primary">
-                    ${user.donationsThisYear}
-                  </p>
-                </div>
-                <div className="bg-secondary rounded-lg p-4 text-center">
-                  <span className="text-sm text-muted-foreground block">Last Year</span>
-                  <p className="text-2xl font-bold text-foreground">
-                    ${user.donationsLastYear}
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            {/* Volunteer Hours Card */}
-            <Card className="p-6 shadow-card">
-              <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Volunteer Hours
-              </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-secondary rounded-lg p-4 text-center">
-                  <span className="text-sm text-muted-foreground block">This Year</span>
-                  <p className="text-2xl font-bold text-primary">
-                    {user.volunteerHoursThisYear}
-                  </p>
-                </div>
-                <div className="bg-secondary rounded-lg p-4 text-center">
-                  <span className="text-sm text-muted-foreground block">Last Year</span>
-                  <p className="text-2xl font-bold text-foreground">
-                    {user.volunteerHoursLastYear}
-                  </p>
-                </div>
-              </div>
-            </Card>
+            {/* TODO: Add Donations Card with real data */}
+            {/* TODO: Add Volunteer Hours Card with real data */}
           </div>
 
-          {/* Badges Section */}
-          <Card className="p-6 shadow-card">
-            <h2 className="text-xl font-bold text-primary mb-6 flex items-center gap-2">
-              <Mountain className="w-5 h-5" />
-              Your Badges
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-              {badges.map((badge) => (
-                <BadgeDisplay
-                  key={badge.name}
-                  name={badge.name}
-                  icon={badge.icon}
-                  earned={badge.earned}
-                  description={badge.description}
-                />
-              ))}
-            </div>
-          </Card>
+          {/* TODO: Add Badges Section with real data */}
 
           {/* Call to Action Buttons */}
           <Card className="p-6 shadow-card bg-gradient-to-r from-primary/5 to-accent/5">
@@ -279,7 +270,7 @@ const MyAccount = () => {
                 </Link>
               </Button>
 
-              {user.membershipStatus === "none" && (
+              {!userData.Membership_Status__c && (
                 <Button
                   variant="hero"
                   size="lg"
@@ -293,7 +284,7 @@ const MyAccount = () => {
                 </Button>
               )}
 
-              {user.membershipStatus === "expired" && (
+              {(userData.Membership_Status__c === "Expired" || userData.Membership_Status__c === "Grace Period") && (
                 <Button
                   variant="hero"
                   size="lg"

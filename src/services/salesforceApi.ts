@@ -90,6 +90,53 @@ export async function testSalesforceConnection(): Promise<boolean> {
 }
 
 /**
+ * Get user account data by Clerk User ID
+ */
+export interface UserAccountData {
+  Id: string;
+  FirstName: string;
+  LastName: string;
+  Email: string;
+  Phone?: string;
+  MailingStreet?: string;
+  MailingCity?: string;
+  MailingState?: string;
+  MailingPostalCode?: string;
+  Membership_Status__c?: string | null;
+  npo02__MembershipEndDate__c?: string | null;
+}
+
+export async function getUserAccountData(
+  clerkUserId: string,
+  token: string
+): Promise<UserAccountData> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+
+    const response = await fetch(`${SALESFORCE_API}/contacts/clerk/${clerkUserId}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as ApiError;
+      throw new Error(errorData.error || `Failed to get user data: ${response.statusText}`);
+    }
+
+    return await response.json() as UserAccountData;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unexpected error occurred while fetching user data');
+  }
+}
+
+/**
  * Membership signup interfaces and function
  */
 

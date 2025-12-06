@@ -137,6 +137,32 @@ export async function getContactById(id: string): Promise<Contact> {
 }
 
 /**
+ * Get Contact by Clerk User ID
+ */
+export async function getContactByClerkUserId(clerkUserId: string): Promise<any | null> {
+  console.log('Querying Contact by Clerk User ID:', clerkUserId);
+
+  try {
+    const query = `SELECT Id, FirstName, LastName, Email, Phone, MailingStreet, MailingCity, MailingState, MailingPostalCode, Membership_Status__c, npo02__MembershipEndDate__c FROM Contact WHERE Clerk_User_ID__c='${clerkUserId}' LIMIT 1`;
+    const result = await callSalesforceApi(
+      'GET',
+      `/query?q=${encodeURIComponent(query)}`
+    );
+
+    if (result.records && result.records.length > 0) {
+      console.log('Contact found:', result.records[0].Id);
+      return result.records[0];
+    }
+
+    console.log('Contact not found for Clerk User ID:', clerkUserId);
+    return null;
+  } catch (error: any) {
+    console.error('Failed to query contact by Clerk User ID:', error.message);
+    throw new Error(`Failed to query contact: ${error.message}`);
+  }
+}
+
+/**
  * Create an Opportunity (Membership) in Salesforce
  */
 export async function createOpportunity(
