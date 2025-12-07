@@ -221,6 +221,11 @@ router.post('/membership', async (req, res) => {
       emailOptIn,
       membershipLevel,
       membershipTerm,
+      stripeCustomerId,
+      stripePaymentId,
+      stripePaymentMethodId,
+      stripeNetAmount,
+      stripeProcessingFees,
     } = req.body;
 
     // Validate required fields
@@ -284,6 +289,7 @@ router.post('/membership', async (req, res) => {
         mailingState,
         mailingPostalCode,
         emailOptIn,
+        stripeCustomerId,
       });
       console.log('[API] Contact created successfully:', {
         contactId: contact.Id,
@@ -310,6 +316,10 @@ router.post('/membership', async (req, res) => {
         membershipTerm: salesforceMembershipTerm,
         contactId: contact.Id,
         accountId: contact.AccountId!,
+        stripePaymentId,
+        stripePaymentMethodId,
+        stripeNetAmount,
+        stripeProcessingFees,
       });
       console.log('[API] Opportunity created successfully:', {
         opportunityId: opportunity.Id,

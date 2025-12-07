@@ -238,6 +238,7 @@ export interface CreateMembershipContactRequest {
   mailingState?: string;
   mailingPostalCode?: string;
   emailOptIn: boolean;
+  stripeCustomerId?: string;
 }
 
 export interface MembershipContact extends Contact {
@@ -290,6 +291,10 @@ export async function createMembershipContact(
     payload.MailingPostalCode = data.mailingPostalCode;
   }
 
+  if (data.stripeCustomerId) {
+    payload.Stripe_Customer_ID__c = data.stripeCustomerId;
+  }
+
   try {
     const result = await callSalesforceApi('POST', '/sobjects/Contact/', payload);
 
@@ -330,6 +335,10 @@ export interface CreateMembershipOpportunityRequest {
   membershipTerm: MembershipTerm;
   contactId: string;
   accountId: string;
+  stripePaymentId?: string;
+  stripePaymentMethodId?: string;
+  stripeNetAmount?: number;
+  stripeProcessingFees?: number;
 }
 
 export interface MembershipOpportunity {
@@ -397,6 +406,23 @@ export async function createMembershipOpportunity(
     npe01__Member_Level__c: data.membershipLevel,
     Amount: amount,
   };
+
+  // Add Stripe payment fields if provided
+  if (data.stripePaymentId) {
+    payload.Stripe_Payment_ID__c = data.stripePaymentId;
+  }
+
+  if (data.stripePaymentMethodId) {
+    payload.Stripe_Payment_Method_ID__c = data.stripePaymentMethodId;
+  }
+
+  if (data.stripeNetAmount !== undefined) {
+    payload.Stripe_Net_Amount__c = data.stripeNetAmount;
+  }
+
+  if (data.stripeProcessingFees !== undefined) {
+    payload.Stripe_Processing_Fees__c = data.stripeProcessingFees;
+  }
 
   try {
     const result = await callSalesforceApi(

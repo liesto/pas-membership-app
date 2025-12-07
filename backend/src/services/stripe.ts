@@ -72,7 +72,7 @@ export async function createPaymentIntent(
 }
 
 /**
- * Retrieve a Payment Intent by ID
+ * Retrieve a Payment Intent by ID with expanded data
  */
 export async function getPaymentIntent(
   paymentIntentId: string
@@ -81,7 +81,9 @@ export async function getPaymentIntent(
 
   try {
     const stripeClient = getStripeClient();
-    const paymentIntent = await stripeClient.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent = await stripeClient.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['latest_charge', 'latest_charge.balance_transaction', 'payment_method'],
+    });
 
     console.log('[Stripe] Payment intent retrieved:', {
       paymentIntentId: paymentIntent.id,
@@ -98,5 +100,43 @@ export async function getPaymentIntent(
       timestamp: new Date().toISOString(),
     });
     throw new Error(`Failed to retrieve payment intent: ${error.message}`);
+  }
+}
+
+/**
+ * Create a Stripe Customer
+ * @param email - Customer email
+ * @param name - Customer name
+ * @param metadata - Additional metadata
+ */
+export async function createCustomer(
+  email: string,
+  name: string,
+  metadata?: Record<string, string>
+): Promise<Stripe.Customer> {
+  console.log('[Stripe] Creating customer:', { email, name });
+
+  try {
+    const stripeClient = getStripeClient();
+    const customer = await stripeClient.customers.create({
+      email,
+      name,
+      metadata: metadata || {},
+    });
+
+    console.log('[Stripe] Customer created:', {
+      customerId: customer.id,
+      email: customer.email,
+      timestamp: new Date().toISOString(),
+    });
+
+    return customer;
+  } catch (error: any) {
+    console.error('[Stripe] Failed to create customer:', {
+      email,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+    throw new Error(`Failed to create customer: ${error.message}`);
   }
 }

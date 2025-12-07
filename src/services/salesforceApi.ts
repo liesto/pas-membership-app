@@ -161,6 +161,11 @@ export interface CreateMembershipRequest {
   emailOptIn: boolean;
   membershipLevel: 'bronze' | 'silver' | 'gold';
   membershipTerm: 'monthly' | 'annual';
+  stripeCustomerId?: string;
+  stripePaymentId?: string;
+  stripePaymentMethodId?: string;
+  stripeNetAmount?: number;
+  stripeProcessingFees?: number;
 }
 
 export interface CreateMembershipResponse {
@@ -298,5 +303,74 @@ export async function createPaymentIntent(
       throw error;
     }
     throw new Error('An unexpected error occurred while creating payment intent');
+  }
+}
+
+/**
+ * Get Payment Intent details
+ * @param paymentIntentId - Payment Intent ID
+ * @returns Promise with payment intent details
+ * @throws Error if retrieval fails
+ */
+export async function getPaymentIntent(paymentIntentId: string): Promise<any> {
+  console.log('[StripeAPI] Retrieving payment intent:', paymentIntentId);
+
+  try {
+    const response = await fetch(`${STRIPE_API}/payment-intent/${paymentIntentId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as ApiError;
+      throw new Error(errorData.error || `Failed to get payment intent: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unexpected error occurred while getting payment intent');
+  }
+}
+
+/**
+ * Create a Stripe Customer
+ * @param email - Customer email
+ * @param name - Customer name
+ * @returns Promise with customer ID
+ * @throws Error if creation fails
+ */
+export async function createStripeCustomer(
+  email: string,
+  name: string
+): Promise<{ customerId: string }> {
+  console.log('[StripeAPI] Creating customer:', { email, name });
+
+  try {
+    const response = await fetch(`${STRIPE_API}/create-customer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, name }),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as ApiError;
+      throw new Error(errorData.error || `Failed to create customer: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unexpected error occurred while creating customer');
   }
 }
