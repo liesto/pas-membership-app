@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import logo from "@/assets/pisgah-logo.png";
-import { createMembership, type CreateMembershipRequest, createPaymentIntent } from "@/services/salesforceApi";
+import { createMembership, type CreateMembershipRequest, createPaymentIntent, createStripeCustomer, getPaymentIntent } from "@/services/salesforceApi";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
@@ -135,7 +135,18 @@ const SignupForm = () => {
         timestamp: new Date().toISOString()
       });
 
-      // STEP 1: Create Payment Intent
+      // STEP 1: Create Stripe Customer
+      setSubmissionStage('Creating customer account...');
+      console.log('[Signup] Stage: Creating Stripe customer');
+
+      const customerData = await createStripeCustomer(
+        data.email,
+        `${data.firstName} ${data.lastName}`
+      );
+
+      console.log('[Signup] Stripe customer created:', customerData.customerId);
+
+      // STEP 2: Create Payment Intent
       setSubmissionStage('Processing payment...');
       console.log('[Signup] Stage: Creating payment intent');
 
@@ -147,12 +158,13 @@ const SignupForm = () => {
           lastName: data.lastName,
           membershipLevel: data.membershipLevel,
           paymentFrequency: data.paymentFrequency,
+          stripeCustomerId: customerData.customerId,
         },
       });
 
       console.log('[Signup] Payment intent created:', paymentIntentData.paymentIntentId);
 
-      // STEP 2: Confirm Payment with Stripe Elements
+      // STEP 3: Confirm Payment with Stripe Elements
       setSubmissionStage('Confirming payment...');
       const cardNumberElement = elements.getElement(CardNumberElement);
 
@@ -190,7 +202,47 @@ const SignupForm = () => {
 
       console.log('[Signup] Payment succeeded:', paymentIntent.id);
 
-      // STEP 3: Create Salesforce Contact and Membership (only after successful payment)
+      // STEP 4: Retrieve full payment details including charge data
+      setSubmissionStage('Retrieving payment details...');
+      console.log('[Signup] Stage: Retrieving payment intent details');
+
+      const fullPaymentIntent = await getPaymentIntent(paymentIntent.id);
+
+      console.log('[Signup] Full payment intent received:', fullPaymentIntent);
+
+      // Extract Stripe data for Salesforce
+      const paymentMethodId = typeof fullPaymentIntent.payment_method === 'string'
+        ? fullPaymentIntent.payment_method
+        : fullPaymentIntent.payment_method?.id;
+
+      const latestCharge = fullPaymentIntent.latest_charge;
+      const balanceTransaction = latestCharge?.balance_transaction;
+
+      console.log('[Signup] Full payment intent:', JSON.stringify(fullPaymentIntent, null, 2));
+      console.log('[Signup] Latest charge type:', typeof latestCharge);
+      console.log('[Signup] Latest charge:', latestCharge);
+      console.log('[Signup] Balance transaction type:', typeof balanceTransaction);
+      console.log('[Signup] Balance transaction:', balanceTransaction);
+      console.log('[Signup] Extracted data:', {
+        latestCharge,
+        balanceTransaction,
+      });
+
+      // Convert cents to dollars for net amount and fees
+      const stripeNetAmount = balanceTransaction?.net ? balanceTransaction.net / 100 : undefined;
+      const stripeProcessingFees = balanceTransaction?.fee ? balanceTransaction.fee / 100 : undefined;
+
+      console.log('[Signup] Stripe payment details:', {
+        customerId: customerData.customerId,
+        paymentId: paymentIntent.id,
+        paymentMethodId,
+        netAmount: stripeNetAmount,
+        processingFees: stripeProcessingFees,
+        hasNetAmount: stripeNetAmount !== undefined,
+        hasProcessingFees: stripeProcessingFees !== undefined,
+      });
+
+      // STEP 5: Create Salesforce Contact and Membership (only after successful payment)
       setSubmissionStage('Creating membership...');
       console.log('[Signup] Stage: Creating Salesforce membership');
 
@@ -206,6 +258,11 @@ const SignupForm = () => {
         emailOptIn: data.emailOptIn,
         membershipLevel: data.membershipLevel,
         membershipTerm: data.paymentFrequency === 'annual' ? 'annual' : 'monthly',
+        stripeCustomerId: customerData.customerId,
+        stripePaymentId: paymentIntent.id,
+        stripePaymentMethodId: paymentMethodId,
+        stripeNetAmount,
+        stripeProcessingFees,
       };
 
       const result = await createMembership(membershipData);
@@ -526,7 +583,7 @@ const SignupForm = () => {
                           <FormItem>
                             <FormLabel>City</FormLabel>
                             <FormControl>
-                              <Input placeholder="" {...field} />
+                              <Input placeholder="" value={field.value} onChange={field.onChange} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
