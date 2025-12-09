@@ -72,7 +72,15 @@ export async function createPaymentIntent(
 }
 
 /**
+ * Helper function to wait for a specified duration
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
  * Retrieve a Payment Intent by ID with expanded data
+ * Includes retry logic to wait for balance_transaction to be populated
  */
 export async function getPaymentIntent(
   paymentIntentId: string
@@ -81,18 +89,54 @@ export async function getPaymentIntent(
 
   try {
     const stripeClient = getStripeClient();
-    const paymentIntent = await stripeClient.paymentIntents.retrieve(paymentIntentId, {
+    const maxRetries = 5;
+    const baseDelay = 1000; // 1 second
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const paymentIntent = await stripeClient.paymentIntents.retrieve(paymentIntentId, {
+        expand: ['latest_charge', 'latest_charge.balance_transaction', 'payment_method'],
+      });
+
+      // Check if balance_transaction is populated
+      const latestCharge = paymentIntent.latest_charge;
+      const chargeObject = typeof latestCharge === 'object' ? latestCharge : null;
+      const balanceTransaction = chargeObject?.balance_transaction;
+      const hasBalanceTransaction = balanceTransaction && typeof balanceTransaction === 'object' && balanceTransaction.id;
+
+      console.log('[Stripe] Payment intent retrieval attempt:', {
+        attempt,
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status,
+        hasLatestCharge: !!latestCharge,
+        hasBalanceTransaction: !!hasBalanceTransaction,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (hasBalanceTransaction) {
+        console.log('[Stripe] Payment intent retrieved with balance transaction:', {
+          paymentIntentId: paymentIntent.id,
+          balanceTransactionId: (balanceTransaction as Stripe.BalanceTransaction).id,
+          net: (balanceTransaction as Stripe.BalanceTransaction).net,
+          fee: (balanceTransaction as Stripe.BalanceTransaction).fee,
+          timestamp: new Date().toISOString(),
+        });
+        return paymentIntent;
+      }
+
+      // If not the last attempt, wait before retrying
+      if (attempt < maxRetries) {
+        const waitTime = baseDelay * attempt; // Linear backoff: 1s, 2s, 3s, 4s
+        console.log('[Stripe] Balance transaction not yet available, retrying in', waitTime, 'ms');
+        await delay(waitTime);
+      }
+    }
+
+    // Return payment intent even if balance_transaction is not populated after all retries
+    console.warn('[Stripe] Balance transaction not populated after', maxRetries, 'attempts, returning payment intent anyway');
+    const finalPaymentIntent = await stripeClient.paymentIntents.retrieve(paymentIntentId, {
       expand: ['latest_charge', 'latest_charge.balance_transaction', 'payment_method'],
     });
-
-    console.log('[Stripe] Payment intent retrieved:', {
-      paymentIntentId: paymentIntent.id,
-      status: paymentIntent.status,
-      amount: paymentIntent.amount,
-      timestamp: new Date().toISOString(),
-    });
-
-    return paymentIntent;
+    return finalPaymentIntent;
   } catch (error: any) {
     console.error('[Stripe] Failed to retrieve payment intent:', {
       paymentIntentId,
