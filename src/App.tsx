@@ -12,6 +12,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import VerifyResetCode from "./pages/VerifyResetCode";
 import ResetPassword from "./pages/ResetPassword";
 import MyAccount from "./pages/MyAccount";
+import EditAccount from "./pages/EditAccount";
+import PlansPayment from "./pages/PlansPayment";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +34,8 @@ const App = () => (
           <Route path="/verify-reset-code" element={<VerifyResetCode />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/my-account" element={<MyAccount />} />
+          <Route path="/edit-account" element={<EditAccount />} />
+          <Route path="/plans-payment" element={<PlansPayment />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -11,6 +11,7 @@ import {
   createMembershipContact,
   createMembershipOpportunity,
   updateContactClerkUserId,
+  updateContact,
   type MembershipLevel,
   type MembershipTerm,
 } from '../services/salesforce.ts';
@@ -74,6 +75,50 @@ router.get(
       console.error('Get contact error:', error.message);
       res.status(500).json({
         error: error.message || 'Failed to get contact',
+      });
+    }
+  }
+);
+
+/**
+ * PATCH /api/salesforce/contacts/:id
+ * Update a Contact by ID
+ */
+router.patch(
+  '/contacts/:id',
+  requireAuth,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        mailingStreet,
+        mailingCity,
+        mailingState,
+        mailingPostalCode,
+        emailOptIn,
+      } = req.body;
+
+      const contact = await updateContact(id, {
+        firstName,
+        lastName,
+        email,
+        phone,
+        mailingStreet,
+        mailingCity,
+        mailingState,
+        mailingPostalCode,
+        emailOptIn,
+      });
+
+      res.json(contact);
+    } catch (error: any) {
+      console.error('Update contact error:', error.message);
+      res.status(500).json({
+        error: error.message || 'Failed to update contact',
       });
     }
   }

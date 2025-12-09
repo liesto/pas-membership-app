@@ -146,6 +146,53 @@ export async function getUserAccountData(
 }
 
 /**
+ * Update Contact information
+ */
+export interface UpdateContactRequest {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  mailingStreet?: string;
+  mailingCity?: string;
+  mailingState?: string;
+  mailingPostalCode?: string;
+  emailOptIn?: boolean;
+}
+
+export async function updateContactData(
+  contactId: string,
+  contactData: UpdateContactRequest,
+  token: string
+): Promise<UserAccountData> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+
+    const response = await fetch(`${SALESFORCE_API}/contacts/${contactId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(contactData),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as ApiError;
+      throw new Error(errorData.error || `Failed to update contact: ${response.statusText}`);
+    }
+
+    return await response.json() as UserAccountData;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unexpected error occurred while updating contact');
+  }
+}
+
+/**
  * Membership signup interfaces and function
  */
 

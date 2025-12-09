@@ -162,10 +162,15 @@ const MyAccount = () => {
           <div className="grid md:grid-cols-2 gap-6">
             {/* Personal Info Card */}
             <Card className="p-6 shadow-card">
-              <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Personal Information
-              </h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-primary flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Personal Information
+                </h2>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/edit-account">Edit</Link>
+                </Button>
+              </div>
               <div className="space-y-3">
                 <div>
                   <span className="text-sm text-muted-foreground">Name</span>

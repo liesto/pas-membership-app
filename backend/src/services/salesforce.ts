@@ -496,3 +496,95 @@ export async function updateContactClerkUserId(
     throw new Error(`Failed to update Contact with Clerk User ID: ${error.message}`);
   }
 }
+
+/**
+ * Update Contact Information
+ * @param contactId - Salesforce Contact ID
+ * @param data - Contact fields to update
+ */
+export interface UpdateContactRequest {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  mailingStreet?: string;
+  mailingCity?: string;
+  mailingState?: string;
+  mailingPostalCode?: string;
+  emailOptIn?: boolean;
+}
+
+export async function updateContact(
+  contactId: string,
+  data: UpdateContactRequest
+): Promise<Contact> {
+  console.log('[Salesforce] Updating Contact:', {
+    contactId,
+    hasFirstName: !!data.firstName,
+    hasLastName: !!data.lastName,
+    hasEmail: !!data.email,
+    hasAddress: !!(data.mailingStreet || data.mailingCity),
+    timestamp: new Date().toISOString(),
+  });
+
+  const payload: any = {};
+
+  // Add fields if provided
+  if (data.firstName !== undefined) {
+    payload.FirstName = data.firstName;
+  }
+
+  if (data.lastName !== undefined) {
+    payload.LastName = data.lastName;
+  }
+
+  if (data.email !== undefined) {
+    payload.Email = data.email;
+  }
+
+  if (data.phone !== undefined) {
+    payload.Phone = data.phone;
+  }
+
+  if (data.mailingStreet !== undefined) {
+    payload.MailingStreet = data.mailingStreet;
+  }
+
+  if (data.mailingCity !== undefined) {
+    payload.MailingCity = data.mailingCity;
+  }
+
+  if (data.mailingState !== undefined) {
+    payload.MailingState = data.mailingState;
+  }
+
+  if (data.mailingPostalCode !== undefined) {
+    payload.MailingPostalCode = data.mailingPostalCode;
+  }
+
+  if (data.emailOptIn !== undefined) {
+    payload.Email_Opt_In__c = data.emailOptIn ? 'Yes' : 'No';
+    payload.PAS_Newsletter__c = data.emailOptIn;
+  }
+
+  try {
+    await callSalesforceApi('PATCH', `/sobjects/Contact/${contactId}`, payload);
+
+    console.log('[Salesforce] Contact updated successfully:', {
+      contactId,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Fetch and return the updated contact
+    const contact = await getContactById(contactId);
+    return contact;
+  } catch (error: any) {
+    console.error('[Salesforce] Failed to update Contact:', {
+      contactId,
+      error: error.message,
+      errorDetails: error,
+      timestamp: new Date().toISOString(),
+    });
+    throw new Error(`Failed to update Contact: ${error.message}`);
+  }
+}
