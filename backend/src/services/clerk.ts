@@ -23,22 +23,26 @@ function getClerkClient(): ReturnType<typeof createClerkClient> {
 
 /**
  * Create a new Clerk user for membership signup
- * User will receive email verification link to set password
+ * If password is provided, user can log in immediately
+ * If no password, user will receive email verification link to set password
  *
  * @param email - User's email address
  * @param firstName - User's first name
  * @param lastName - User's last name
+ * @param password - Optional password for immediate login
  * @returns Clerk user ID
  */
 export async function createClerkUser(
   email: string,
   firstName: string,
-  lastName: string
+  lastName: string,
+  password?: string
 ): Promise<string> {
   console.log('[Clerk] Creating user:', {
     email,
     firstName,
     lastName,
+    hasPassword: !!password,
     timestamp: new Date().toISOString(),
   });
 
@@ -48,8 +52,7 @@ export async function createClerkUser(
       emailAddress: [email],
       firstName,
       lastName,
-      // No password - triggers email verification flow
-      // User will receive email to verify and set password
+      ...(password && { password }),
     });
 
     console.log('[Clerk] User created successfully:', {

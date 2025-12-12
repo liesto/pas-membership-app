@@ -36,6 +36,12 @@ const signupSchema = z.object({
   paymentFrequency: z.enum(["monthly", "annual"]),
   // Payment fields - validated by Stripe Elements
   cardholderName: z.string().min(2, "Cardholder name is required"),
+  // Password fields
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
@@ -86,6 +92,8 @@ const SignupForm = () => {
       emailOptIn: true,
       paymentFrequency: initialFrequency,
       cardholderName: "",
+      password: "",
+      confirmPassword: "",
     },
   });
 
@@ -263,6 +271,7 @@ const SignupForm = () => {
         stripePaymentMethodId: paymentMethodId,
         stripeNetAmount,
         stripeProcessingFees,
+        password: data.password,
       };
 
       const result = await createMembership(membershipData);
@@ -524,6 +533,34 @@ const SignupForm = () => {
                                 field.onChange(formattedValue);
                               }}
                             />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Confirm Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

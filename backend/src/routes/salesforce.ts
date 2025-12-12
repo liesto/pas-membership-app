@@ -271,6 +271,7 @@ router.post('/membership', async (req, res) => {
       stripePaymentMethodId,
       stripeNetAmount,
       stripeProcessingFees,
+      password,
     } = req.body;
 
     // Validate required fields
@@ -385,7 +386,7 @@ router.post('/membership', async (req, res) => {
     let clerkUserId;
     let clerkUserCreated = false;
     try {
-      clerkUserId = await createClerkUser(email, firstName, lastName);
+      clerkUserId = await createClerkUser(email, firstName, lastName, password);
       clerkUserCreated = true;
 
       console.log('[API] Clerk user created successfully:', {

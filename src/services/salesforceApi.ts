@@ -214,6 +214,7 @@ export interface CreateMembershipRequest {
   stripePaymentMethodId?: string;
   stripeNetAmount?: number;
   stripeProcessingFees?: number;
+  password?: string;
 }
 
 export interface CreateMembershipResponse {
