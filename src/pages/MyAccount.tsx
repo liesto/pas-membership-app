@@ -99,6 +99,15 @@ const MyAccount = () => {
 
   const getMembershipStatusDisplay = () => {
     const status = userData?.Membership_Status__c;
+    const endDate = userData?.npo02__MembershipEndDate__c;
+
+    // Check if membership has actually expired by comparing dates
+    const isExpired = endDate && new Date(endDate) < new Date();
+
+    // If the end date has passed, treat as expired regardless of Salesforce status
+    if (isExpired) {
+      return { label: "Expired Member", color: "bg-destructive" };
+    }
 
     if (status === "Current") {
       return { label: "Current Member", color: "bg-green-500" };
@@ -228,7 +237,7 @@ const MyAccount = () => {
                     {statusDisplay.label}
                   </span>
                 </div>
-                {userData.Membership_Status__c === "Current" && userData.npo02__MembershipEndDate__c && (
+                {statusDisplay.label === "Current Member" && userData.npo02__MembershipEndDate__c && (
                   <div>
                     <span className="text-sm text-muted-foreground">Expires</span>
                     <p className="text-base font-medium text-foreground">
@@ -240,12 +249,24 @@ const MyAccount = () => {
                     </p>
                   </div>
                 )}
-                {(userData.Membership_Status__c === "Expired" || userData.Membership_Status__c === "Grace Period") && (
+                {userData.npo02__MembershipEndDate__c && statusDisplay.label === "Expired Member" && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">Expired</span>
+                    <p className="text-base font-medium text-foreground">
+                      {new Date(userData.npo02__MembershipEndDate__c).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                )}
+                {statusDisplay.label === "Expired Member" && (
                   <Button variant="accent" size="lg" className="w-full mt-4" asChild>
                     <Link to="/signup">Renew Now</Link>
                   </Button>
                 )}
-                {!userData.Membership_Status__c && (
+                {statusDisplay.label === "Not a Member" && (
                   <Button variant="hero" size="lg" className="w-full mt-4" asChild>
                     <Link to="/signup">Join Today</Link>
                   </Button>
@@ -315,7 +336,7 @@ const MyAccount = () => {
                 name="Trail Builders Club"
                 imageSrc={trailBuildersBadge}
                 earned={userData.Trail_Builders_Club__c === true}
-                description="10+ volunteer hours"
+                description=""
               />
               <BadgeDisplay
                 name="Industry Partner"
