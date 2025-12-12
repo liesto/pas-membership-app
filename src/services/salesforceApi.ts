@@ -105,6 +105,7 @@ export interface UserAccountData {
   MailingPostalCode?: string;
   Membership_Status__c?: string | null;
   npo02__MembershipEndDate__c?: string | null;
+  npo02__LastMembershipLevel__c?: string | null;
   npo02__OppAmountThisYear__c?: number | null;
   npo02__OppAmountLastYear__c?: number | null;
   Trailwork_Hours_This_Year__c?: number | null;

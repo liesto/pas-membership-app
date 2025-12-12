@@ -237,17 +237,29 @@ const MyAccount = () => {
                     {statusDisplay.label}
                   </span>
                 </div>
-                {statusDisplay.label === "Current Member" && userData.npo02__MembershipEndDate__c && (
+                {statusDisplay.label === "Current Member" && userData.npo02__LastMembershipLevel__c && (
                   <div>
-                    <span className="text-sm text-muted-foreground">Expires</span>
-                    <p className="text-base font-medium text-foreground">
-                      {new Date(userData.npo02__MembershipEndDate__c).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                    <p className="text-base text-muted-foreground">
+                      {userData.npo02__LastMembershipLevel__c} Membership
                     </p>
                   </div>
+                )}
+                {statusDisplay.label === "Current Member" && userData.npo02__MembershipEndDate__c && (
+                  <>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Expires</span>
+                      <p className="text-base font-medium text-foreground">
+                        {new Date(userData.npo02__MembershipEndDate__c).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="lg" className="w-full mt-2" asChild>
+                      <Link to="/plans-payment">Plans & Payment</Link>
+                    </Button>
+                  </>
                 )}
                 {userData.npo02__MembershipEndDate__c && statusDisplay.label === "Expired Member" && (
                   <div>

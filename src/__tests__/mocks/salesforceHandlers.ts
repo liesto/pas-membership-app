@@ -112,6 +112,7 @@ export const salesforceHandlers = [
         MailingPostalCode: '28801',
         Membership_Status__c: 'Current',
         npo02__MembershipEndDate__c: '2025-12-31',
+        npo02__LastMembershipLevel__c: 'Silver',
         npo02__OppAmountThisYear__c: 100,
         npo02__OppAmountLastYear__c: 100,
         Trailwork_Hours_This_Year__c: 10,
