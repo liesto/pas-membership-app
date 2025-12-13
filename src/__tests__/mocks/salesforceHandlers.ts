@@ -42,6 +42,8 @@ export const salesforceHandlers = [
       );
     }
 
+    // Password is optional but should be accepted if provided
+
     // Simulate successful membership creation
     const contactId = 'SF_CONTACT_' + Date.now();
     const opportunityId = 'SF_OPPORTUNITY_' + Date.now();

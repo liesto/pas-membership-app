@@ -2,14 +2,23 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 
+// Mock the clerk service
+const { mockCreateClerkUser } = vi.hoisted(() => ({
+  mockCreateClerkUser: vi.fn(),
+}));
+
+vi.mock('../../services/clerk.ts', () => ({
+  createClerkUser: mockCreateClerkUser,
+}));
+
 // Mock the @clerk/backend module before importing the router
-const mockCreateUser = vi.fn();
-const mockDeleteUser = vi.fn();
+const { mockDeleteUser } = vi.hoisted(() => ({
+  mockDeleteUser: vi.fn(),
+}));
 
 vi.mock('@clerk/backend', () => ({
   createClerkClient: vi.fn(() => ({
     users: {
-      createUser: mockCreateUser,
       deleteUser: mockDeleteUser,
     },
   })),
@@ -40,14 +49,7 @@ describe('Clerk Routes', () => {
   describe('POST /api/clerk/users', () => {
     it('should create a user with email, firstName, and lastName (no password)', async () => {
       // Arrange
-      const mockUser = {
-        id: 'user_test123',
-        emailAddresses: [{ emailAddress: 'test@example.com' }],
-        firstName: 'John',
-        lastName: 'Doe',
-      };
-
-      mockCreateUser.mockResolvedValue(mockUser);
+      mockCreateClerkUser.mockResolvedValue('user_test123');
 
       // Act
       const response = await request(app)
@@ -65,23 +67,12 @@ describe('Clerk Routes', () => {
         userId: 'user_test123',
         email: 'test@example.com',
       });
-      expect(mockCreateUser).toHaveBeenCalledWith({
-        emailAddress: ['test@example.com'],
-        firstName: 'John',
-        lastName: 'Doe',
-      });
+      expect(mockCreateClerkUser).toHaveBeenCalledWith('test@example.com', 'John', 'Doe', undefined);
     });
 
     it('should create a user with password when password is provided', async () => {
       // Arrange
-      const mockUser = {
-        id: 'user_test456',
-        emailAddresses: [{ emailAddress: 'jane@example.com' }],
-        firstName: 'Jane',
-        lastName: 'Smith',
-      };
-
-      mockCreateUser.mockResolvedValue(mockUser);
+      mockCreateClerkUser.mockResolvedValue('user_test456');
 
       // Act
       const response = await request(app)
@@ -100,14 +91,7 @@ describe('Clerk Routes', () => {
         userId: 'user_test456',
         email: 'jane@example.com',
       });
-      expect(mockCreateUser).toHaveBeenCalledWith({
-        emailAddress: ['jane@example.com'],
-        firstName: 'Jane',
-        lastName: 'Smith',
-        password: 'SecurePassword123!',
-        skipPasswordChecks: false,
-        skipPasswordRequirement: false,
-      });
+      expect(mockCreateClerkUser).toHaveBeenCalledWith('jane@example.com', 'Jane', 'Smith', 'SecurePassword123!');
     });
 
     it('should return 400 when email is missing', async () => {
@@ -122,7 +106,7 @@ describe('Clerk Routes', () => {
       // Assert
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Missing required fields: email, firstName, lastName');
-      expect(mockCreateUser).not.toHaveBeenCalled();
+      expect(mockCreateClerkUser).not.toHaveBeenCalled();
     });
 
     it('should return 400 when firstName is missing', async () => {
@@ -137,7 +121,7 @@ describe('Clerk Routes', () => {
       // Assert
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Missing required fields: email, firstName, lastName');
-      expect(mockCreateUser).not.toHaveBeenCalled();
+      expect(mockCreateClerkUser).not.toHaveBeenCalled();
     });
 
     it('should return 400 when lastName is missing', async () => {
@@ -152,7 +136,7 @@ describe('Clerk Routes', () => {
       // Assert
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Missing required fields: email, firstName, lastName');
-      expect(mockCreateUser).not.toHaveBeenCalled();
+      expect(mockCreateClerkUser).not.toHaveBeenCalled();
     });
 
     it('should return 400 when all required fields are missing', async () => {
@@ -164,7 +148,7 @@ describe('Clerk Routes', () => {
       // Assert
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Missing required fields: email, firstName, lastName');
-      expect(mockCreateUser).not.toHaveBeenCalled();
+      expect(mockCreateClerkUser).not.toHaveBeenCalled();
     });
 
     it('should return 500 when Clerk API fails', async () => {
@@ -175,7 +159,7 @@ describe('Clerk Routes', () => {
         clerkTraceId: 'trace_123',
         errors: [{ code: 'duplicate_email', message: 'Email already exists' }],
       };
-      mockCreateUser.mockRejectedValue(clerkError);
+      mockCreateClerkUser.mockRejectedValue(clerkError);
 
       // Act
       const response = await request(app)
@@ -196,7 +180,7 @@ describe('Clerk Routes', () => {
 
     it('should handle generic errors from Clerk API', async () => {
       // Arrange
-      mockCreateUser.mockRejectedValue(new Error('Network error'));
+      mockCreateClerkUser.mockRejectedValue(new Error('Network error'));
 
       // Act
       const response = await request(app)
@@ -225,20 +209,13 @@ describe('Clerk Routes', () => {
       // Assert
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Missing required fields: email, firstName, lastName');
-      expect(mockCreateUser).not.toHaveBeenCalled();
+      expect(mockCreateClerkUser).not.toHaveBeenCalled();
     });
 
     it('should handle whitespace-only values for required fields', async () => {
       // Act - Note: The current implementation doesn't trim, so whitespace passes validation
       // This test documents current behavior
-      const mockUser = {
-        id: 'user_test789',
-        emailAddresses: [{ emailAddress: '   ' }],
-        firstName: '   ',
-        lastName: '   ',
-      };
-
-      mockCreateUser.mockResolvedValue(mockUser);
+      mockCreateClerkUser.mockResolvedValue('user_test789');
 
       const response = await request(app)
         .post('/api/clerk/users')
@@ -254,17 +231,7 @@ describe('Clerk Routes', () => {
 
     it('should handle user creation with multiple email addresses in response', async () => {
       // Arrange
-      const mockUser = {
-        id: 'user_multi123',
-        emailAddresses: [
-          { emailAddress: 'primary@example.com' },
-          { emailAddress: 'secondary@example.com' },
-        ],
-        firstName: 'Multi',
-        lastName: 'Email',
-      };
-
-      mockCreateUser.mockResolvedValue(mockUser);
+      mockCreateClerkUser.mockResolvedValue('user_multi123');
 
       // Act
       const response = await request(app)
@@ -282,14 +249,7 @@ describe('Clerk Routes', () => {
 
     it('should handle user creation when emailAddresses array is empty', async () => {
       // Arrange
-      const mockUser = {
-        id: 'user_noemail',
-        emailAddresses: [],
-        firstName: 'No',
-        lastName: 'Email',
-      };
-
-      mockCreateUser.mockResolvedValue(mockUser);
+      mockCreateClerkUser.mockResolvedValue('user_noemail');
 
       // Act
       const response = await request(app)
@@ -302,7 +262,7 @@ describe('Clerk Routes', () => {
 
       // Assert
       expect(response.status).toBe(201);
-      expect(response.body.email).toBeUndefined();
+      expect(response.body.email).toBe('test@example.com');
     });
   });
 
@@ -425,13 +385,7 @@ describe('Clerk Routes', () => {
   describe('Edge Cases', () => {
     it('should handle user creation with valid data using password flow', async () => {
       // Arrange
-      const mockUser = {
-        id: 'user_password_flow',
-        emailAddresses: [{ emailAddress: 'password@example.com' }],
-        firstName: 'Password',
-        lastName: 'Flow',
-      };
-      mockCreateUser.mockResolvedValue(mockUser);
+      mockCreateClerkUser.mockResolvedValue('user_password_flow');
 
       // Act
       await request(app)
@@ -444,14 +398,7 @@ describe('Clerk Routes', () => {
         });
 
       // Assert
-      expect(mockCreateUser).toHaveBeenCalledWith({
-        emailAddress: ['password@example.com'],
-        firstName: 'Password',
-        lastName: 'Flow',
-        password: 'TestPassword123!',
-        skipPasswordChecks: false,
-        skipPasswordRequirement: false,
-      });
+      expect(mockCreateClerkUser).toHaveBeenCalledWith('password@example.com', 'Password', 'Flow', 'TestPassword123!');
     });
 
     it('should handle user deletion with valid userId', async () => {

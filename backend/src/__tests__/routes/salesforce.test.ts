@@ -605,7 +605,7 @@ describe('Salesforce Routes', () => {
         stripeProcessingFees: 2.50,
       });
 
-      expect(clerkService.createClerkUser).toHaveBeenCalledWith('john@example.com', 'John', 'Doe');
+      expect(clerkService.createClerkUser).toHaveBeenCalledWith('john@example.com', 'John', 'Doe', undefined);
       expect(salesforceService.updateContactClerkUserId).toHaveBeenCalledWith('contact_123', 'user_clerk123');
     });
 

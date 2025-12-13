@@ -48,16 +48,24 @@ export async function createClerkUser(
 
   try {
     const client = getClerkClient();
+
+    // When password is provided, mark email as verified so user can sign in immediately
     const user = await client.users.createUser({
       emailAddress: [email],
       firstName,
       lastName,
-      ...(password && { password }),
+      ...(password && {
+        password,
+        skipPasswordChecks: true,
+      }),
+      // Mark email as verified if password is provided
+      ...(password && { verified: true }),
     });
 
     console.log('[Clerk] User created successfully:', {
       userId: user.id,
       email: user.emailAddresses[0]?.emailAddress,
+      emailVerified: user.emailAddresses[0]?.verification?.status,
       timestamp: new Date().toISOString(),
     });
 

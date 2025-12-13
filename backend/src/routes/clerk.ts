@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createClerkClient } from '@clerk/backend';
+import { createClerkUser } from '../services/clerk.ts';
 
 let clerkClient: ReturnType<typeof createClerkClient> | null = null;
 
@@ -35,34 +36,13 @@ router.post('/users', async (req, res) => {
 
     console.log('[Clerk API] Creating user:', { email, firstName, lastName });
 
-    const client = getClerkClient();
-
-    // If password is provided, create user with password
-    // If no password, user will receive email verification link
-    const userData: any = {
-      emailAddress: [email],
-      firstName,
-      lastName,
-    };
-
-    if (password) {
-      userData.password = password;
-      // Skip email verification if password is provided
-      userData.skipPasswordChecks = false;
-      userData.skipPasswordRequirement = false;
-    }
-
-    const user = await client.users.createUser(userData);
-
-    console.log('[Clerk API] User created successfully:', {
-      userId: user.id,
-      email: user.emailAddresses[0]?.emailAddress,
-    });
+    // Use the clerk service which handles email verification properly
+    const userId = await createClerkUser(email, firstName, lastName, password);
 
     res.status(201).json({
       success: true,
-      userId: user.id,
-      email: user.emailAddresses[0]?.emailAddress,
+      userId: userId,
+      email: email,
     });
   } catch (error: any) {
     console.error('[Clerk API] Create user error:', {
